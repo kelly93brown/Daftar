@@ -84,7 +84,6 @@ class AppState extends ChangeNotifier {
     ];
   }
 
-  // ==================== محرك التخزين الدائم ====================
   Future<File> _getLocalDbFile() async {
     final dir = await getApplicationDocumentsDirectory();
     return File('${dir.path}/daftar_database.json');
@@ -157,7 +156,6 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // ==================== مجلد النسخ الاحتياطي Downloads/Daftar ====================
   Future<Directory> getBackupFolder() async {
     Directory? dir;
     if (Platform.isAndroid) {
@@ -224,7 +222,19 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // ==================== باقي العمليات والمنطق ====================
+  Future<bool> deleteBackupFile(File file) async {
+    try {
+      if (await file.exists()) {
+        await file.delete();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Delete backup error: $e');
+      return false;
+    }
+  }
+
   Color get debitColor => invertDebitCreditColors ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F);
   Color get creditColor => invertDebitCreditColors ? const Color(0xFFD32F2F) : const Color(0xFF2E7D32);
   Color get debitBg => invertDebitCreditColors ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE);
@@ -257,11 +267,22 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void updateTransaction(String id, int newRawAmount, DateTime newDate, String newNote, TransactionType newType) {
+  // تسمح بتعديل الوحدة والمبلغ والتاريخ والبيان والنوع
+  void updateTransaction(String id, String newUnitId, int newRawAmount, DateTime newDate, String newNote, TransactionType newType) {
     final idx = entries.indexWhere((e) => e.id == id);
     if (idx != -1) {
       final old = entries[idx];
-      entries[idx] = LedgerEntry(id: old.id, compositeGroupId: old.compositeGroupId, partyId: old.partyId, unitId: old.unitId, rawAmount: newRawAmount, type: newType, date: newDate, note: newNote, isDeleted: old.isDeleted);
+      entries[idx] = LedgerEntry(
+        id: old.id,
+        compositeGroupId: old.compositeGroupId,
+        partyId: old.partyId,
+        unitId: newUnitId,
+        rawAmount: newRawAmount,
+        type: newType,
+        date: newDate,
+        note: newNote,
+        isDeleted: old.isDeleted,
+      );
       saveToDisk();
       notifyListeners();
     }
