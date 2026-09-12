@@ -25,9 +25,10 @@ class CustomerLedgerScreen extends StatefulWidget {
 
 class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
   DateTimeRange? _filterRange;
+  String _filterName = '';
   final Set<String> _selectedEntryIds = {};
   bool _isSelectionMode = false;
-  bool _sortAscending = false; // التحكم في ترتيب التاريخ
+  bool _sortAscending = false;
 
   bool _isSearching = false;
   String _searchQuery = '';
@@ -52,7 +53,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
     }
   }
 
-  // نافذة تحديد الفترة المتطابقة تماماً مع الصورة المرفقة
   void _showDateFilterSheet(BuildContext context) {
     String currentChoice = 'all';
     DateTime now = DateTime.now();
@@ -79,7 +79,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                   const Text('حدد الفترة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D4E42))),
                   const SizedBox(height: 16),
 
-                  // الخيارات الستة في شبكة 2x3
                   Row(
                     children: [
                       _buildPeriodBtn('أمس', Icons.history, currentChoice == 'yesterday', () => setSheetState(() => currentChoice = 'yesterday')),
@@ -108,13 +107,15 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                   const Divider(),
                   const SizedBox(height: 10),
 
-                  // الخيارات السفلية المخصصة
                   Row(
                     children: [
                       _buildPeriodBtn('تحديد من - إلى', Icons.date_range, false, () async {
                         final picked = await showDateRangePicker(context: context, firstDate: DateTime(2020), lastDate: DateTime(2030));
                         if (picked != null) {
-                          setState(() => _filterRange = picked);
+                          setState(() {
+                            _filterRange = picked;
+                            _filterName = '${picked.start.month}/${picked.start.day} - ${picked.end.month}/${picked.end.day}';
+                          });
                           Navigator.pop(ctx);
                         }
                       }),
@@ -122,7 +123,10 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                       _buildPeriodBtn('تحديد يوم فقط', Icons.calendar_month_outlined, false, () async {
                         final picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2030));
                         if (picked != null) {
-                          setState(() => _filterRange = DateTimeRange(start: picked, end: picked));
+                          setState(() {
+                            _filterRange = DateTimeRange(start: picked, end: picked);
+                            _filterName = '${picked.year}-${picked.month}-${picked.day}';
+                          });
                           Navigator.pop(ctx);
                         }
                       }),
@@ -130,7 +134,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                   ),
 
                   const SizedBox(height: 20),
-                  // زرا موافق وإلغاء
                   Row(
                     children: [
                       Expanded(
@@ -142,22 +145,22 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                           ),
                           onPressed: () {
                             if (currentChoice == 'all') {
-                              setState(() => _filterRange = null);
+                              setState(() { _filterRange = null; _filterName = ''; });
                             } else if (currentChoice == 'today') {
                               final start = DateTime(now.year, now.month, now.day);
-                              setState(() => _filterRange = DateTimeRange(start: start, end: start));
+                              setState(() { _filterRange = DateTimeRange(start: start, end: start); _filterName = 'اليوم'; });
                             } else if (currentChoice == 'yesterday') {
                               final y = now.subtract(const Duration(days: 1));
                               final start = DateTime(y.year, y.month, y.day);
-                              setState(() => _filterRange = DateTimeRange(start: start, end: start));
+                              setState(() { _filterRange = DateTimeRange(start: start, end: start); _filterName = 'أمس'; });
                             } else if (currentChoice == 'last_7') {
-                              setState(() => _filterRange = DateTimeRange(start: now.subtract(const Duration(days: 7)), end: now));
+                              setState(() { _filterRange = DateTimeRange(start: now.subtract(const Duration(days: 7)), end: now); _filterName = 'آخر 7 أيام'; });
                             } else if (currentChoice == 'this_month') {
-                              setState(() => _filterRange = DateTimeRange(start: DateTime(now.year, now.month, 1), end: now));
+                              setState(() { _filterRange = DateTimeRange(start: DateTime(now.year, now.month, 1), end: now); _filterName = 'هذا الشهر'; });
                             } else if (currentChoice == 'last_month') {
                               final firstDayLastMonth = DateTime(now.year, now.month - 1, 1);
                               final lastDayLastMonth = DateTime(now.year, now.month, 0);
-                              setState(() => _filterRange = DateTimeRange(start: firstDayLastMonth, end: lastDayLastMonth));
+                              setState(() { _filterRange = DateTimeRange(start: firstDayLastMonth, end: lastDayLastMonth); _filterName = 'الشهر الماضي'; });
                             }
                             Navigator.pop(ctx);
                           },
@@ -204,14 +207,7 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: isSelected ? const Color(0xFF0D4E42) : Colors.black87,
-                ),
-              ),
+              Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isSelected ? const Color(0xFF0D4E42) : Colors.black87)),
               Icon(icon, size: 18, color: isSelected ? const Color(0xFF0D4E42) : Colors.grey),
             ],
           ),
@@ -244,7 +240,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
           return true;
         }).toList();
 
-    // فرز العمليات وفق المتغير _sortAscending
     partyEntries.sort((a, b) => _sortAscending ? a.date.compareTo(b.date) : b.date.compareTo(a.date));
 
     final Map<String, int> runningCalculators = {};
@@ -260,7 +255,16 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
       rowRunningBalances[entry.id] = cur;
     }
 
-    // دعم PopScope: زر الرجوع في الهاتف يلغي البحث ولا يخرج من الصفحة
+    // تحديد عنوان عمود المبلغ/الوزن بمرونة
+    final hasWeight = partyEntries.any((e) => state.units.firstWhere((u) => u.id == e.unitId, orElse: () => state.units.first).kind == UnitKind.weight);
+    final hasCurrency = partyEntries.any((e) => state.units.firstWhere((u) => u.id == e.unitId, orElse: () => state.units.first).kind == UnitKind.currency);
+    String dynamicAmountTitle = 'المبلغ / الوزن';
+    if (hasWeight && !hasCurrency) {
+      dynamicAmountTitle = 'الوزن';
+    } else if (hasCurrency && !hasWeight) {
+      dynamicAmountTitle = 'المبلغ';
+    }
+
     return PopScope(
       canPop: !_isSearching,
       onPopInvokedWithResult: (didPop, result) {
@@ -279,23 +283,19 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
           appBar: AppBar(
             backgroundColor: primaryTeal,
             iconTheme: const IconThemeData(color: Colors.white),
-            // اسم الزبون بلون أبيض صريح
             title: _isSearching
                 ? TextField(
                     controller: _searchCtrl,
                     autofocus: true,
                     style: const TextStyle(color: Colors.white),
                     decoration: const InputDecoration(
-                      hintText: 'بحث في التفاصيل، المبلغ أو التاريخ...',
+                      hintText: 'بحث...',
                       hintStyle: TextStyle(color: Colors.white70),
                       border: InputBorder.none,
                     ),
                     onChanged: (val) => setState(() => _searchQuery = val),
                   )
-                : Text(
-                    widget.party.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
-                  ),
+                : Text(widget.party.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
             actions: [
               if (_isSelectionMode)
                 IconButton(
@@ -316,9 +316,25 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                   },
                 ),
                 IconButton(icon: const Icon(Icons.share, color: Colors.white), onPressed: () => _openShareOptionsSheet(context, partyEntries, runningCalculators)),
-                IconButton(
-                  icon: const Icon(Icons.calendar_today, color: Colors.white),
-                  onPressed: () => _showDateFilterSheet(context),
+                // أيقونة الرزنامة مع نقطة حمراء عند تفعيل الفلتر
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.calendar_today, color: Colors.white),
+                      onPressed: () => _showDateFilterSheet(context),
+                    ),
+                    if (_filterRange != null)
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
+                        ),
+                      ),
+                  ],
                 ),
               ]
             ],
@@ -330,6 +346,32 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
               child: Column(
                 children: [
                   _buildTopBalances(state, runningCalculators),
+
+                  // شريط التنبيه البرتقالي عند تحديد فترة (مطابق للصورتين 2 و 3)
+                  if (_filterRange != null)
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7ED),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFFEDD5)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.filter_alt_outlined, color: Colors.orange, size: 20),
+                          const SizedBox(width: 8),
+                          Text(_filterName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
+                          const Spacer(),
+                          InkWell(
+                            onTap: () => setState(() { _filterRange = null; _filterName = ''; }),
+                            child: const Icon(Icons.close, size: 18, color: Colors.black54),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // ترويسة الجدول: تعديل مكان كلمة التاريخ لتأتي على يسار السهم
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     color: primaryTeal,
@@ -338,8 +380,8 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                         const Expanded(flex: 2, child: Text('الرصيد', textAlign: TextAlign.right, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
                         const SizedBox(width: 24),
                         const Expanded(flex: 2, child: Text('التفاصيل', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
-                        const Expanded(flex: 2, child: Text('المبلغ/الوزن', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
-                        // زر التاريخ لعكس الفرز عند النقر
+                        Expanded(flex: 2, child: Text(dynamicAmountTitle, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
+                        // السهم أولاً ثم كلمة "التاريخ" على يساره
                         Expanded(
                           flex: 2,
                           child: InkWell(
@@ -347,9 +389,11 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.start,
                               children: [
-                                Text(
-                                  _sortAscending ? 'تاريخ ↑' : 'تاريخ ↓',
-                                  style: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 13),
+                                Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward, size: 14, color: Colors.amberAccent),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'التاريخ',
+                                  style: TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 13),
                                 ),
                               ],
                             ),
@@ -358,9 +402,10 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                       ],
                     ),
                   ),
+
                   Expanded(
                     child: partyEntries.isEmpty
-                        ? const Center(child: Text('لا توجد حركات مسجلة'))
+                        ? const Center(child: Text('لا يوجد'))
                         : ListView.builder(
                             itemCount: partyEntries.length,
                             itemBuilder: (ctx, i) {
@@ -437,7 +482,7 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
     );
   }
 
-  // بطاقات الرصيد الصافي العلوية مع تكبير حجم الخط
+  // بطاقات الرصيد العلوية مع تكبير حجم الخط إلى 26
   Widget _buildTopBalances(AppState state, Map<String, int> runningCalculators) {
     final activeUnits = state.units.where((u) => runningCalculators[u.id] != 0 || state.entries.any((e) => e.partyId == widget.party.id && e.unitId == u.id)).toList();
     if (activeUnits.isEmpty) return const SizedBox();
@@ -468,10 +513,10 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // تكبير حجم الخط للرصيد
+                  // خط كبير وواضح للرصيد
                   Text(
                     '${u.symbol} ${u.formatValue(bal.abs())}',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: isPositive ? state.creditColor : state.debitColor),
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: isPositive ? state.creditColor : state.debitColor),
                   ),
                   const SizedBox(height: 2),
                   Text(isPositive ? 'مستحق له (دائن)' : 'مطلوب منه (مدين)', style: const TextStyle(fontSize: 11, color: Colors.grey)),
@@ -484,7 +529,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
     );
   }
 
-  // نص المشاركة الموحد للـ SMS، WhatsApp وزر المشاركة العام
   String _buildFormattedMessage(AppState state, LedgerEntry entry, UnitCurrency unit, Map<String, int> runningCalculators) {
     final typeStr = entry.type == TransactionType.take ? 'عليك' : 'لك';
     String msg = "العميل: ${widget.party.name}\n";
@@ -527,7 +571,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
               const Divider(),
               const SizedBox(height: 8),
 
-              // تعديل ألوان الخطوط لتكون واضحة وداكنة ومقروءة
               _detailRow(
                 'المبلغ',
                 Row(
@@ -554,7 +597,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                     Navigator.pop(ctx);
                     _openEditTransactionSheet(context, state, entry, unit);
                   }),
-                  // زر المشاركة ينسخ ويشارك نفس النص الخاص بـ SMS و واتساب
                   _actionCircle(Icons.share, 'مشاركة', const Color(0xFFF1F5F4), Colors.black87, () {
                     Navigator.pop(ctx);
                     final shareText = _buildFormattedMessage(state, entry, unit, runningCalculators);
