@@ -1,12 +1,13 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:screenshot/screenshot.dart';
+import 'package:flutter/rendering.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../models/models.dart';
 import '../services/app_state.dart';
@@ -31,7 +32,8 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
   String _searchQuery = '';
   final TextEditingController _searchCtrl = TextEditingController();
 
-  final ScreenshotController _screenshotController = ScreenshotController();
+  // مفتاح مخصص لالتقاط صورة الشاشة بدل مكتبة Screenshot المسببة للخطأ
+  final GlobalKey _globalKey = GlobalKey();
 
   @override
   void dispose() {
@@ -39,12 +41,23 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
     super.dispose();
   }
 
+  // دالة التقاط صورة الشاشة Native
+  Future<List<int>?> _capturePng() async {
+    try {
+      RenderRepaintBoundary boundary = _globalKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } catch (e) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
     const primaryTeal = Color(0xFF0D4E42);
 
-    // تصفية المعاملات والبحث الذكي
     List<LedgerEntry> partyEntries = state.entries
         .where((e) => e.partyId == widget.party.id && !e.isDeleted)
         .where((e) {
@@ -64,7 +77,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
 
     partyEntries.sort((a, b) => b.date.compareTo(a.date));
 
-    // حساب الرصيد التراكمي
     final Map<String, int> runningCalculators = {};
     for (var u in state.units) runningCalculators[u.id] = 0;
     
@@ -126,15 +138,14 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
             ]
           ],
         ),
-        body: Screenshot(
-          controller: _screenshotController,
+        // استخدمت RepaintBoundary لالتقاط صورة بديلة للمكتبة المحذوفة
+        body: RepaintBoundary(
+          key: _globalKey,
           child: Container(
             color: const Color(0xFFF4F7F6),
             child: Column(
               children: [
-                // بطاقات الرصيد العلوية كالصورة 31
                 _buildTopBalances(state, runningCalculators),
-
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   color: primaryTeal,
@@ -267,7 +278,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
     );
   }
 
-  // إرسال رسالة نصية للسجل (مطابق للصورة 30)
   Future<void> _sendTextSummary(AppState state, LedgerEntry entry, UnitCurrency unit, Map<String, int> runningCalculators, bool isWhatsApp) async {
     String msg = "العميل: ${widget.party.name}\n";
     final typeStr = entry.type == TransactionType.take ? 'عليك' : 'لك';
@@ -281,7 +291,7 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
     if (await canLaunchUrl(url)) {
       await launchUrl(url);
     } else {
-      Share.share(msg); // كحل بديل إذا لم يكن التطبيق مثبتاً
+      Share.share(msg);
     }
   }
 
@@ -382,19 +392,17 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
     );
   }
 
-  // 1. مشاركة صورة (Screenshot)
   Future<void> _shareImage() async {
     Navigator.pop(context);
-    final image = await _screenshotController.capture();
-    if (image != null) {
+    final imageBytes = await _capturePng();
+    if (imageBytes != null) {
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/ledger.png');
-      await file.writeAsBytes(image);
+      await file.writeAsBytes(imageBytes);
       await Share.shareXFiles([XFile(file.path)], text: 'سجل ${widget.party.name}');
     }
   }
 
-  // 2. مشاركة نصية
   Future<void> _shareText(List<LedgerEntry> entries) async {
     Navigator.pop(context);
     String txt = "كشف حساب: ${widget.party.name}\n\n";
@@ -405,7 +413,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
     await Share.share(txt);
   }
 
-  // 3. مشاركة إكسل (CSV)
   Future<void> _shareExcel(List<LedgerEntry> entries) async {
     Navigator.pop(context);
     String csv = "التاريخ,المبلغ,الوحدة,النوع,التفاصيل\n";
@@ -419,17 +426,15 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
     await Share.shareXFiles([XFile(file.path)], text: 'ملف إكسل - ${widget.party.name}');
   }
 
-  // 4. مشاركة PDF
   Future<void> _sharePdf(List<LedgerEntry> entries) async {
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('جاري إنشاء ملف الـ PDF...')));
     
     final pdf = pw.Document();
+    final imageBytes = await _capturePng();
     
-    // كحل بديل للخطوط العربية في الـ PDF بدون إنترنت، نستخدم صورة الشاشة كـ PDF
-    final image = await _screenshotController.capture();
-    if (image != null) {
-      final pdfImage = pw.MemoryImage(image);
+    if (imageBytes != null) {
+      final pdfImage = pw.MemoryImage(imageBytes);
       pdf.addPage(pw.Page(build: (pw.Context context) {
         return pw.Center(child: pw.Image(pdfImage));
       }));
@@ -473,8 +478,7 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
       ),
     );
   }
-  
-  // دالة التعديل والحذف الجماعي موجودة ومفعّلة مسبقاً (تم إدراجها في الكودات السابقة)
+
   void _openEditTransactionSheet(BuildContext context, AppState state, LedgerEntry entry, UnitCurrency unit) {
     final amountCtrl = TextEditingController(text: unit.formatValue(entry.rawAmount));
     final noteCtrl = TextEditingController(text: entry.note);
