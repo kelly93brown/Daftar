@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'screens/home_screen.dart';
 import 'services/app_state.dart';
+import 'services/notification_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.init(); // تهيئة الإشعارات
   runApp(const JewelryLedgerApp());
 }
 
@@ -32,23 +34,24 @@ class _JewelryLedgerAppState extends State<JewelryLedgerApp> {
       debugShowCheckedModeBanner: false,
       title: 'دفتر الصاغة والمجوهرات',
       themeMode: _appState.themeMode,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(_appState.fontScale)),
+          child: child!,
+        );
+      },
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('ar', 'DZ'),
-        Locale('ar', 'SA'),
-        Locale('en', 'US'),
-      ],
+      supportedLocales: const [Locale('ar', 'DZ'), Locale('en', 'US')],
       locale: const Locale('ar', 'DZ'),
       theme: ThemeData(
         useMaterial3: true,
         primaryColor: primaryTeal,
         colorScheme: ColorScheme.fromSeed(seedColor: primaryTeal, primary: primaryTeal),
         scaffoldBackgroundColor: const Color(0xFFF4F7F6),
-        fontFamily: 'Roboto',
       ),
       darkTheme: ThemeData.dark().copyWith(
         primaryColor: primaryTeal,
