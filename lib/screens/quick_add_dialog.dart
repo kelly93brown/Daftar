@@ -53,7 +53,6 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
     super.dispose();
   }
 
-  // نافذة البحث عن الحساب (مطابقة للصورة 25)
   void _openPartySearchSheet() {
     showModalBottomSheet(
       context: context,
@@ -155,10 +154,9 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
           children: [
             Container(width: 44, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
             const SizedBox(height: 12),
-            const Text('إضافة معاملة سريعة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D4E42))),
+            const Text('إضافة معاملة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D4E42))),
             const SizedBox(height: 16),
 
-            // زر منتقي الحساب القابل للبحث مع التاريخ
             Row(
               children: [
                 Expanded(
@@ -218,7 +216,6 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
             ),
             const SizedBox(height: 14),
 
-            // الحقل الديناميكي (وزن / مبلغ)
             Row(
               children: [
                 Expanded(
@@ -228,7 +225,7 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
                       labelText: isPrimaryWeight ? 'الوزن (${primaryUnit.symbol})' : 'المبلغ (${primaryUnit.symbol})',
-                      hintText: isPrimaryWeight ? '12.450' : '50000',
+                      hintText: isPrimaryWeight ? '12.45' : '50000',
                       filled: true,
                       fillColor: const Color(0xFFF6F8F8),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -257,13 +254,12 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
               ],
             ),
 
-            // زر المعاملة المركبة
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 icon: Icon(_isComposite ? Icons.close : Icons.add_circle_outline, size: 18),
                 label: Text(
-                  _isComposite ? 'إلغاء المعاملة المركبة' : '+ إضافة وحدة أخرى (معاملة مركبة)',
+                  _isComposite ? 'إلغاء المعاملة المركبة' : '+ إضافة وحدة أخرى',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 onPressed: () => setState(() => _isComposite = !_isComposite),
@@ -313,7 +309,7 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
             TextField(
               controller: _noteCtrl,
               decoration: InputDecoration(
-                hintText: 'التفاصيل أو البيان (مثال: دفعة كسر عيار 18)',
+                hintText: 'التفاصيل أو البيان',
                 filled: true,
                 fillColor: const Color(0xFFF6F8F8),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -324,34 +320,32 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton.icon(
+                  child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: state.debitColor,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
-                    icon: const Icon(Icons.arrow_downward, color: Colors.white),
-                    label: Text(
-                      '${state.takeLabel} (مدين/عليه)',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
                     onPressed: () => _submit(TransactionType.take),
+                    child: const Text(
+                      'أخذ',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton.icon(
+                  child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: state.creditColor,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
-                    icon: const Icon(Icons.arrow_upward, color: Colors.white),
-                    label: Text(
-                      '${state.payLabel} (دائن/له)',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
                     onPressed: () => _submit(TransactionType.pay),
+                    child: const Text(
+                      'دفع',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
                   ),
                 ),
               ],
@@ -363,7 +357,6 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
   }
 }
 
-// نافذة منبثقة للبحث عن الحساب (مطابقة للصورة 25)
 class _PartySearchSheet extends StatefulWidget {
   final AppState state;
   final String? selectedPartyId;
@@ -413,9 +406,9 @@ class _PartySearchSheetState extends State<_PartySearchSheet> {
           ),
           const SizedBox(height: 10),
 
-          // حقل البحث
+          // تم جعل autofocus: false ليتم عرض الحسابات مباشرة ولا تفتح لوحة المفاتيح إلا عند النقر
           TextField(
-            autofocus: true,
+            autofocus: false,
             onChanged: (v) => setState(() => _query = v),
             decoration: InputDecoration(
               hintText: 'بحث',
