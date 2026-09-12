@@ -64,7 +64,6 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // البطاقة العلوية (مطابقة للصورة 27)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -92,7 +91,6 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
               ),
               const SizedBox(height: 20),
 
-              // اختيار التصنيف
               Align(
                 alignment: Alignment.centerRight,
                 child: Text('التصنيف', style: TextStyle(color: Colors.grey.shade700, fontSize: 13, fontWeight: FontWeight.bold)),
@@ -106,8 +104,10 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                     isExpanded: true,
                     value: _selectedCategory,
                     icon: const Icon(Icons.keyboard_arrow_down, color: primaryTeal),
-                    items: widget.state.categories.where((c) => !c.isDeleted).map((c) {
-                      return DropdownMenuItem(
+                    items: widget.state.categories
+                        .where((c) => !c.isDeleted)
+                        .map<DropdownMenuItem<String>>((c) {
+                      return DropdownMenuItem<String>(
                         value: c.name,
                         child: Row(
                           children: [
@@ -126,7 +126,6 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
               ),
               const SizedBox(height: 14),
 
-              // اسم الحساب
               TextField(
                 controller: _nameCtrl,
                 decoration: InputDecoration(
@@ -139,7 +138,6 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
               ),
               const SizedBox(height: 14),
 
-              // رقم الهاتف
               TextField(
                 controller: _phoneCtrl,
                 keyboardType: TextInputType.phone,
