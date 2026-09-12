@@ -51,8 +51,9 @@ class AppState extends ChangeNotifier {
     final dzdCurrencyId = UuidUtil.generate();
 
     units = [
-      UnitCurrency(id: goldUnitId, name: 'ذهب', symbol: 'g', code: 'XAU', kind: UnitKind.weight, decimalPlaces: 3),
-      UnitCurrency(id: dzdCurrencyId, name: 'دينار', symbol: 'DA', code: 'DZD', kind: UnitKind.currency, decimalPlaces: 2),
+      // تم تغيير الذهب إلى رقمين بعد الفاصلة، والدينار إلى 0
+      UnitCurrency(id: goldUnitId, name: 'ذهب', symbol: 'g', code: 'XAU', kind: UnitKind.weight, decimalPlaces: 2),
+      UnitCurrency(id: dzdCurrencyId, name: 'دينار', symbol: 'DA', code: 'DZD', kind: UnitKind.currency, decimalPlaces: 0),
     ];
 
     final p1 = UuidUtil.generate();
