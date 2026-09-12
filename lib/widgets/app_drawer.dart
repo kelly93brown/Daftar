@@ -4,6 +4,70 @@ import '../services/app_state.dart';
 import '../screens/add_account_screen.dart';
 import '../screens/settings_screen.dart';
 
+// دالة عرض إشعار علوي احترافي (يشبه إشعارات الهاتف المنسدلة)
+void showTopNotification(BuildContext context, {required String title, required String message, IconData icon = Icons.check_circle}) {
+  final overlay = Overlay.of(context);
+  late OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (ctx) => Positioned(
+      top: MediaQuery.of(ctx).padding.top + 8,
+      left: 16,
+      right: 16,
+      child: Material(
+        color: Colors.transparent,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: -80.0, end: 0.0),
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutBack,
+          builder: (context, val, child) => Transform.translate(
+            offset: Offset(0, val),
+            child: child,
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D4E42),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4)),
+              ],
+            ),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.white24,
+                    radius: 18,
+                    child: Icon(icon, color: Colors.amberAccent, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        const SizedBox(height: 2),
+                        Text(message, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  overlay.insert(entry);
+  Future.delayed(const Duration(seconds: 4), () {
+    entry.remove();
+  });
+}
+
 class AppSideDrawer extends StatelessWidget {
   final AppState state;
   const AppSideDrawer({super.key, required this.state});
@@ -23,8 +87,13 @@ class AppSideDrawer extends StatelessWidget {
               onPressed: () async {
                 Navigator.pop(ctx);
                 final path = await state.exportBackup();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('تم حفظ النسخة بنجاح في:\n$path')),
+                final fileName = path.split('/').last;
+                // إظهار الإشعار العلوي فور اكتمال النسخ
+                showTopNotification(
+                  context,
+                  title: 'تم حفظ نسخة احتياطية',
+                  message: 'تم حفظ الملف بنجاح: $fileName في مجلد Downloads/Daftar',
+                  icon: Icons.cloud_done,
                 );
               },
               child: const Text('حفظ الآن', style: TextStyle(color: Colors.white)),
@@ -41,8 +110,6 @@ class AppSideDrawer extends StatelessWidget {
     if (folder.existsSync()) {
       files = folder.listSync().where((f) => f.path.endsWith('.json')).toList();
     }
-    
-    // إذا لم تكن متوفرة في مجلد Daftar نبحث في مجلد Downloads الرئيسي
     if (files.isEmpty && Platform.isAndroid) {
       final downloadDir = Directory('/storage/emulated/0/Download');
       if (downloadDir.existsSync()) {
@@ -52,49 +119,132 @@ class AppSideDrawer extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('استرجاع نسخة احتياطية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D4E42))),
-              const SizedBox(height: 8),
-              Text(
-                files.isEmpty ? 'لم يتم العثور على ملفات نسخة احتياطية في مجلد Downloads/Daftar' : 'اختر ملف النسخة الاحتياطية للاسترجاع:',
-                style: const TextStyle(fontSize: 13, color: Colors.black54),
-              ),
-              const SizedBox(height: 12),
-              if (files.isNotEmpty)
-                ...files.map((file) {
-                  final name = file.path.split('/').last;
-                  return ListTile(
-                    leading: const Icon(Icons.history, color: Color(0xFF0D4E42)),
-                    title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                    onTap: () async {
-                      Navigator.pop(ctx);
-                      final success = await state.restoreFromFile(File(file.path));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(success ? 'تم استرجاع البيانات بنجاح!' : 'فشل في استرجاع النسخة')),
+        child: StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(width: 44, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
+                  const SizedBox(height: 12),
+                  const Text('استرجاع نسخة احتياطية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D4E42))),
+                  const SizedBox(height: 8),
+                  Text(
+                    files.isEmpty ? 'لا توجد ملفات نسخ احتياطية متوفرة.' : 'اختر النسخة المراد استعادتها أو حذفها:',
+                    style: const TextStyle(fontSize: 13, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 14),
+                  if (files.isNotEmpty)
+                    ...files.map((file) {
+                      final name = file.path.split('/').last;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF6F8F8),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          leading: const Icon(Icons.insert_drive_file_outlined, color: Color(0xFF0D4E42)),
+                          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // زر الاستعادة
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0D4E42),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  minimumSize: Size.zero,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: () async {
+                                  Navigator.pop(ctx);
+                                  final success = await state.restoreFromFile(File(file.path));
+                                  if (success) {
+                                    showTopNotification(
+                                      context,
+                                      title: 'تم استعادة النسخة الاحتياطية',
+                                      message: 'تم تحديث واسترجاع جميع بيانات التطبيق بنجاح.',
+                                      icon: Icons.restore_page,
+                                    );
+                                  }
+                                },
+                                child: const Text('استعادة', style: TextStyle(color: Colors.white, fontSize: 12)),
+                              ),
+                              const SizedBox(width: 6),
+                              // زر الحذف
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 22),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (confirmCtx) => AlertDialog(
+                                      title: const Text('حذف النسخة'),
+                                      content: Text('هل تريد بالتأكيد حذف ملف النسخة الاحتياطية:\n$name؟'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(confirmCtx), child: const Text('إلغاء')),
+                                        ElevatedButton(
+                                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                          onPressed: () async {
+                                            Navigator.pop(confirmCtx);
+                                            await state.deleteBackupFile(File(file.path));
+                                            setModalState(() {
+                                              files.removeWhere((f) => f.path == file.path);
+                                            });
+                                          },
+                                          child: const Text('حذف', style: TextStyle(color: Colors.white)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
                       );
-                    },
-                  );
-                }),
-              const SizedBox(height: 10),
-            ],
-          ),
+                    }),
+                  const SizedBox(height: 10),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  void _showSnack(BuildContext context, String msg) {
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  Widget _sectionTitle(String title) {
+    return Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 4), child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)));
+  }
+
+  Widget _drawerTile(IconData icon, String title, VoidCallback onTap, {String? badge}) {
+    return ListTile(
+      dense: true,
+      leading: Icon(icon, color: const Color(0xFF0D4E42), size: 20),
+      title: Row(
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          if (badge != null) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(8)),
+              child: Text(badge, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ],
+      ),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
+      onTap: onTap,
+    );
   }
 
   @override
@@ -130,13 +280,6 @@ class AppSideDrawer extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.15), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                    icon: const Icon(Icons.login, color: Colors.white, size: 18),
-                    label: const Text('تسجيل حساب', style: TextStyle(color: Colors.white)),
-                    onPressed: () => _showSnack(context, 'سيتم تفعيل ميزة مزامنة الحسابات السحابية قريباً'),
-                  ),
                 ],
               ),
             ),
@@ -146,10 +289,6 @@ class AppSideDrawer extends StatelessWidget {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (_) => AddAccountScreen(state: state)));
             }),
-            _drawerTile(Icons.speed, 'سقف الحساب', () => _showSnack(context, 'ميزة تحديد سقف الدين قيد التطوير')),
-            _drawerTile(Icons.alarm, 'التذكيرات', () => _showSnack(context, 'ميزة جدولة التذكيرات قيد التطوير')),
-            _drawerTile(Icons.chat, 'ربط واتساب', () => _showSnack(context, 'سيتم إتاحة الربط التلقائي بـ WhatsApp قريباً'), badge: 'جديد'),
-            _drawerTile(Icons.bar_chart, 'التقارير', () => _showSnack(context, 'جاري إعداد واجهة التقارير التحليلية المتقدمة')),
             const Divider(),
 
             _sectionTitle('إدارة البيانات'),
@@ -161,7 +300,6 @@ class AppSideDrawer extends StatelessWidget {
               Navigator.pop(context);
               _showRestoreDialog(context);
             }),
-            _drawerTile(Icons.add_to_drive, 'جوجل درايف', () => _showSnack(context, 'جاري الربط مع Google Drive...')),
             const Divider(),
 
             _sectionTitle('إعدادات التطبيق'),
@@ -169,43 +307,12 @@ class AppSideDrawer extends StatelessWidget {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsScreen(state: state)));
             }),
-            _drawerTile(Icons.translate, 'اللغة', () => _showSnack(context, 'اللغة الحالية هي العربية')),
-            _drawerTile(Icons.share_outlined, 'مشاركة البرنامج', () => _showSnack(context, 'شكراً لمشاركة تطبيق دفتر مع أصدقائك!')),
-            _drawerTile(Icons.feedback_outlined, 'إرسال الملاحظات', () => _showSnack(context, 'جاري فتح عميل البريد الإلكتروني...')),
-            _drawerTile(Icons.headset_mic_outlined, 'للتواصل والدعم الفني', () => _showSnack(context, 'سيتم تحويلك إلى فريق الدعم')),
-            _drawerTile(Icons.star_outline, 'تقييم التطبيق', () => _showSnack(context, 'شكراً لتقييمك لتطبيق دفتر 5 نجوم!')),
             const SizedBox(height: 20),
             const Center(child: Text('v2.2.14', style: TextStyle(color: Colors.grey, fontSize: 12))),
             const SizedBox(height: 20),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _sectionTitle(String title) {
-    return Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 4), child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)));
-  }
-
-  Widget _drawerTile(IconData icon, String title, VoidCallback onTap, {String? badge}) {
-    return ListTile(
-      dense: true,
-      leading: Icon(icon, color: const Color(0xFF0D4E42), size: 20),
-      title: Row(
-        children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-          if (badge != null) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(8)),
-              child: Text(badge, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ],
-      ),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
-      onTap: onTap,
     );
   }
 }
