@@ -264,15 +264,23 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
       dynamicAmountTitle = 'المبلغ';
     }
 
+    // دعم إغلاق التحديد المتعدد بزر الرجوع الخاص بالهاتف
     return PopScope(
-      canPop: !_isSearching,
+      canPop: !_isSearching && !_isSelectionMode,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _isSearching) {
-          setState(() {
-            _isSearching = false;
-            _searchQuery = '';
-            _searchCtrl.clear();
-          });
+        if (!didPop) {
+          if (_isSearching) {
+            setState(() {
+              _isSearching = false;
+              _searchQuery = '';
+              _searchCtrl.clear();
+            });
+          } else if (_isSelectionMode) {
+            setState(() {
+              _isSelectionMode = false;
+              _selectedEntryIds.clear();
+            });
+          }
         }
       },
       child: Directionality(
@@ -368,7 +376,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                       ),
                     ),
 
-                  // ترويسة الجدول: تم ضبط التاريخ ليكون في أقصى اليسار عبر Align
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     color: primaryTeal,
@@ -378,7 +385,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                         const SizedBox(width: 16),
                         const Expanded(flex: 2, child: Text('التفاصيل', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
                         Expanded(flex: 2, child: Text(dynamicAmountTitle, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
-                        // في أقصى اليسار (Align left)
                         Expanded(
                           flex: 2,
                           child: InkWell(
@@ -442,7 +448,7 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                     child: Row(
                                       children: [
-                                        // الرصيد: تنسيق LTR (الرقم أولاً ثم الوحدة)
+                                        // الرصيد: أصبح أسود وبدون ألوان، مع التنسيق LTR الصحيح
                                         Expanded(
                                           flex: 2,
                                           child: Directionality(
@@ -452,22 +458,26 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                                                   ? '••••'
                                                   : '${running < 0 ? "-" : ""}${unit.formatValue(running.abs())} ${unit.symbol}',
                                               textAlign: TextAlign.right,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 13,
-                                                color: running >= 0 ? Colors.black87 : Colors.red,
-                                              ),
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
                                             ),
                                           ),
                                         ),
                                         Icon(isTake ? Icons.arrow_drop_down : Icons.arrow_drop_up, color: isTake ? state.debitColor : state.creditColor, size: 20),
                                         Expanded(flex: 2, child: Text(entry.note.isNotEmpty ? entry.note : '-', textAlign: TextAlign.center, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis)),
-                                        // المبلغ / الوزن
+                                        
+                                        // المبلغ / الوزن باتجاه LTR للوحدة
                                         Expanded(
                                           flex: 2,
-                                          child: Text(unit.formatValue(entry.rawAmount), textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isTake ? state.debitColor : state.creditColor)),
+                                          child: Directionality(
+                                            textDirection: TextDirection.ltr,
+                                            child: Text(
+                                              '${unit.formatValue(entry.rawAmount)} ${unit.symbol}',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isTake ? state.debitColor : state.creditColor),
+                                            ),
+                                          ),
                                         ),
-                                        // التاريخ بأقصى اليسار
+                                        
                                         Expanded(
                                           flex: 2,
                                           child: Text(
@@ -498,7 +508,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
     );
   }
 
-  // بطاقات الرصيد العلوية مع ضبط اتجاه LTR وتكبير الخط
   Widget _buildTopBalances(AppState state, Map<String, int> runningCalculators) {
     final activeUnits = state.units.where((u) => runningCalculators[u.id] != 0 || state.entries.any((e) => e.partyId == widget.party.id && e.unitId == u.id)).toList();
     if (activeUnits.isEmpty) return const SizedBox();
@@ -529,7 +538,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // اتجاه LTR لعرض الرقم متبوعاً بالوحدة مع فاصل الآلاف
                   Directionality(
                     textDirection: TextDirection.ltr,
                     child: Text(
@@ -579,10 +587,7 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
         textDirection: TextDirection.rtl,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
+          decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -646,7 +651,7 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
     );
   }
 
-  // ==================== نافذة التعديل المطابقة للصورة 37 ====================
+  // ===================== نافذة التعديل المطابقة تماماً للصورة 37 =====================
   void _openEditTransactionSheet(BuildContext context, AppState state, LedgerEntry entry, UnitCurrency initialUnit) {
     String selectedUnitId = entry.unitId;
     final amountCtrl = TextEditingController(text: initialUnit.formatValue(entry.rawAmount).replaceAll(' ', ''));
@@ -662,176 +667,115 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
         textDirection: TextDirection.rtl,
         child: StatefulBuilder(
           builder: (context, setModalState) {
-            final activeUnit = state.units.firstWhere((u) => u.id == selectedUnitId, orElse: () => initialUnit);
-            final isWeight = activeUnit.kind == UnitKind.weight;
-
             return Container(
-              padding: EdgeInsets.only(
-                top: 12,
-                left: 20,
-                right: 20,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-              ),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
+              padding: EdgeInsets.only(top: 12, left: 20, right: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+              decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 4,
-                        decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
+                    Center(child: Container(width: 44, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)))),
                     const SizedBox(height: 16),
 
-                    // نوع العملة / الوحدة
                     const Text('نوع العملة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF6F8F8),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(14)),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           isExpanded: true,
                           value: selectedUnitId,
                           icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
                           items: state.units.where((u) => !u.isDeleted).map((u) {
-                            return DropdownMenuItem(
-                              value: u.id,
-                              child: Text(u.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            );
+                            return DropdownMenuItem(value: u.id, child: Text(u.name, style: const TextStyle(fontWeight: FontWeight.bold)));
                           }).toList(),
-                          onChanged: (val) {
-                            if (val != null) setModalState(() => selectedUnitId = val);
-                          },
+                          onChanged: (val) { if (val != null) setModalState(() => selectedUnitId = val); },
                         ),
                       ),
                     ),
                     const SizedBox(height: 14),
 
-                    // المبلغ أو الوزن
-                    Text(isWeight ? 'الوزن' : 'المبلغ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
+                    const Text('المبلغ / الوزن', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
                     const SizedBox(height: 6),
                     Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFF0D4E42), width: 1.5),
-                      ),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFF0D4E42), width: 1.5)),
                       child: TextField(
                         controller: amountCtrl,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(vertical: 12),
-                        ),
+                        decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 12)),
                       ),
                     ),
                     const SizedBox(height: 14),
 
-                    // التفاصيل
                     const Text('التفاصيل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
                     const SizedBox(height: 6),
                     Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF6F8F8),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(14)),
                       child: TextField(
                         controller: noteCtrl,
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(vertical: 12),
-                        ),
+                        decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 12)),
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    // التاريخ مع أيقونة الكاميرا (مطابق للصورة 37)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        InkWell(
-                          onTap: () async {
-                            final picked = await showDatePicker(context: context, initialDate: currentDate, firstDate: DateTime(2020), lastDate: DateTime(2030));
-                            if (picked != null) setModalState(() => currentDate = picked);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF6F8F8),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              "${currentDate.year}-${currentDate.month.toString().padLeft(2, '0')}-${currentDate.day.toString().padLeft(2, '0')}",
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(context: context, initialDate: currentDate, firstDate: DateTime(2020), lastDate: DateTime(2030));
+                              if (picked != null) setModalState(() => currentDate = picked);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(12)),
+                              child: Center(
+                                child: Text("${currentDate.year}-${currentDate.month.toString().padLeft(2, '0')}-${currentDate.day.toString().padLeft(2, '0')}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              ),
                             ),
                           ),
                         ),
+                        const SizedBox(width: 16),
                         Container(
                           padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.black87, width: 1.5),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          decoration: BoxDecoration(border: Border.all(color: Colors.black87, width: 1.5), borderRadius: BorderRadius.circular(12)),
                           child: const Icon(Icons.camera_alt_outlined, size: 28, color: Colors.black87),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 24),
 
-                    // خيارات الراديو (أخذ / دفع)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Row(
                           children: [
-                            Radio<TransactionType>(
-                              value: TransactionType.take,
-                              groupValue: currentType,
-                              activeColor: const Color(0xFF0D4E42),
-                              onChanged: (v) => setModalState(() => currentType = v!),
-                            ),
+                            Radio<TransactionType>(value: TransactionType.take, groupValue: currentType, activeColor: const Color(0xFF0D4E42), onChanged: (v) => setModalState(() => currentType = v!)),
                             const Text('أخذ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                           ],
                         ),
                         const SizedBox(width: 40),
                         Row(
                           children: [
-                            Radio<TransactionType>(
-                              value: TransactionType.pay,
-                              groupValue: currentType,
-                              activeColor: const Color(0xFF0D4E42),
-                              onChanged: (v) => setModalState(() => currentType = v!),
-                            ),
+                            Radio<TransactionType>(value: TransactionType.pay, groupValue: currentType, activeColor: const Color(0xFF0D4E42), onChanged: (v) => setModalState(() => currentType = v!)),
                             const Text('دفع', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                           ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
 
-                    // زر حفظ الأخضر العريض
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0D4E42),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
+                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D4E42), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                         onPressed: () {
                           final newUnit = state.units.firstWhere((u) => u.id == selectedUnitId);
                           final rawAmount = newUnit.parseInput(amountCtrl.text);
