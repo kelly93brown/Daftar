@@ -1,6 +1,5 @@
 import 'dart:math';
 
-// مولد UUID خفيف ومستقل بدون حزم خارجية
 class UuidUtil {
   static final Random _random = Random();
   static String generate() {
@@ -16,22 +15,17 @@ class UuidUtil {
   }
 }
 
-// نوع الطرف: زبون، مورد، مصروفات
 enum PartyType { customer, supplier, expense }
-
-// نوع الحركة: أخذ (مدين) / دفع (دائن)
 enum TransactionType { take, pay }
-
-// صنف الوحدة أو العملة (ذهب/وزن مقابل نقد)
 enum UnitKind { weight, currency }
 
 class UnitCurrency {
   final String id;
-  String name; // غرام، دينار، كاسي، خواتم
-  String symbol; // g, DA, EUR
-  String code; // DZD, XAU
+  String name;
+  String symbol;
+  String code;
   UnitKind kind;
-  int decimalPlaces; // 3 للوزن (مليغرام)، 2 للنقد (سنتيم)
+  int decimalPlaces;
   bool isDeleted;
 
   UnitCurrency({
@@ -44,13 +38,11 @@ class UnitCurrency {
     this.isDeleted = false,
   });
 
-  // تحويل الرقم الصحيح إلى نص للعرض
   String formatValue(int rawValue) {
     double val = rawValue / pow(10, decimalPlaces);
     return val.toStringAsFixed(decimalPlaces);
   }
 
-  // تحويل النص المدخل من المستخدم إلى عدد صحيح
   int parseInput(String input) {
     double val = double.tryParse(input.replaceAll(',', '.')) ?? 0.0;
     return (val * pow(10, decimalPlaces)).round();
@@ -62,7 +54,7 @@ class AccountParty {
   String name;
   String phone;
   PartyType type;
-  String category; // عام، تجار كبار، ورشات...
+  String category;
   String address;
   bool isDeleted;
 
@@ -79,10 +71,10 @@ class AccountParty {
 
 class LedgerEntry {
   final String id;
-  final String? compositeGroupId; // لربط الحركات المركبة (وزن + نقد)
+  final String? compositeGroupId;
   final String partyId;
   final String unitId;
-  final int rawAmount; // مخزن كعدد صحيح دقيق
+  final int rawAmount;
   final TransactionType type;
   final DateTime date;
   final String note;
