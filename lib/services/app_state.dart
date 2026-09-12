@@ -17,18 +17,20 @@ class AppState extends ChangeNotifier {
   bool autoBackupEnabled = true;
   int autoBackupHours = 24;
 
+  String storeNameAr = "مجوهرات البركة";
+  String storeNameEn = "Al Baraka Jewelry";
+  String storePhone = "0550123456";
+  String storeAddress = "سوق الذهب المركزي";
+
   bool printHideInfo = false;
   bool printShowTime = true;
-  String printDateFormat = "yyyy-MM-dd";
 
   String singleMessageTemplate =
       "العميل: {customer}\n{type}: {amount} {currency}\n{note}\nالاجمالي: {total} {currency}\nالتاريخ: {date}";
-
   String multipleMessageTemplate =
       "العميل: {customer}\nالعمليات:\n{items}\nالرصيد الإجمالي: {total} {currency}";
 
-  List<String> categories = ['عام', 'عملاء', 'موردين'];
-
+  late List<CategoryItem> categories;
   late List<UnitCurrency> units;
   late List<AccountParty> parties;
   late List<LedgerEntry> entries;
@@ -39,10 +41,15 @@ class AppState extends ChangeNotifier {
   }
 
   void _initDefaults() {
+    categories = [
+      CategoryItem(id: UuidUtil.generate(), name: 'عام'),
+      CategoryItem(id: UuidUtil.generate(), name: 'عملاء'),
+      CategoryItem(id: UuidUtil.generate(), name: 'موردين'),
+    ];
+
     final goldUnitId = UuidUtil.generate();
     final dzdCurrencyId = UuidUtil.generate();
 
-    // تم الإبقاء حصراً على الذهب والدينار في الواجهة الرئيسية
     units = [
       UnitCurrency(
         id: goldUnitId,
@@ -67,9 +74,9 @@ class AppState extends ChangeNotifier {
     final p3 = UuidUtil.generate();
 
     parties = [
-      AccountParty(id: p1, name: 'Hamza', type: PartyType.customer, phone: '222#*', category: 'عملاء'),
-      AccountParty(id: p2, name: 'adel', type: PartyType.customer, phone: '06666599791', category: 'عملاء'),
-      AccountParty(id: p3, name: 'نورالدين', type: PartyType.supplier, phone: '123', category: 'موردين'),
+      AccountParty(id: p1, name: 'Hamza', phone: '222#*', category: 'عام', type: PartyType.customer),
+      AccountParty(id: p2, name: 'adel', phone: '06666599791', category: 'عملاء', type: PartyType.customer),
+      AccountParty(id: p3, name: 'نورالدين', phone: '123', category: 'عملاء', type: PartyType.customer),
     ];
 
     entries = [
@@ -79,34 +86,16 @@ class AppState extends ChangeNotifier {
         unitId: goldUnitId,
         rawAmount: 59000,
         type: TransactionType.take,
-        date: DateTime(2026, 9, 12, 5, 49),
+        date: DateTime.now(),
         note: 'خاتم',
       ),
       LedgerEntry(
         id: UuidUtil.generate(),
-        partyId: p2,
-        unitId: dzdCurrencyId,
-        rawAmount: 5000000,
-        type: TransactionType.pay,
-        date: DateTime(2025, 11, 6),
-        note: 'خلص',
-      ),
-      LedgerEntry(
-        id: UuidUtil.generate(),
-        partyId: p2,
-        unitId: dzdCurrencyId,
-        rawAmount: 500000,
-        type: TransactionType.take,
-        date: DateTime(2025, 11, 6),
-        note: 'حجرة',
-      ),
-      LedgerEntry(
-        id: UuidUtil.generate(),
-        partyId: p2,
+        partyId: p1,
         unitId: dzdCurrencyId,
         rawAmount: 400000,
         type: TransactionType.pay,
-        date: DateTime(2026, 9, 10),
+        date: DateTime.now(),
         note: 'dzd',
       ),
     ];
@@ -114,8 +103,8 @@ class AppState extends ChangeNotifier {
     pdfColumns = [
       PdfColumnConfig(id: 'seq', title: 'الرقم / التسلسل', isVisible: false),
       PdfColumnConfig(id: 'details', title: 'البيان / التفاصيل', isVisible: true),
-      PdfColumnConfig(id: 'pay', title: 'دفع', isVisible: true),
-      PdfColumnConfig(id: 'take', title: 'أخذ', isVisible: true),
+      PdfColumnConfig(id: 'pay', title: 'دفع (دائن)', isVisible: true),
+      PdfColumnConfig(id: 'take', title: 'أخذ (مدين)', isVisible: true),
       PdfColumnConfig(id: 'balance', title: 'الرصيد', isVisible: true),
       PdfColumnConfig(id: 'date', title: 'التاريخ', isVisible: true),
     ];
@@ -128,16 +117,15 @@ class AppState extends ChangeNotifier {
 
   Map<String, int> getBalancesForParty(String partyId) {
     final Map<String, int> balances = {};
-    for (var u in units.where((element) => !element.isDeleted)) {
+    for (var u in units.where((u) => !u.isDeleted)) {
       balances[u.id] = 0;
     }
-    final activeEntries = entries.where((e) => e.partyId == partyId && !e.isDeleted);
-    for (var entry in activeEntries) {
+    for (var entry in entries.where((e) => e.partyId == partyId && !e.isDeleted)) {
       int current = balances[entry.unitId] ?? 0;
       if (entry.type == TransactionType.take) {
-        current -= entry.rawAmount;
-      } else {
         current += entry.rawAmount;
+      } else {
+        current -= entry.rawAmount;
       }
       balances[entry.unitId] = current;
     }
@@ -146,49 +134,53 @@ class AppState extends ChangeNotifier {
 
   Map<String, int> getTotalStoreBalances() {
     final Map<String, int> totals = {};
-    for (var u in units.where((element) => !element.isDeleted)) {
+    for (var u in units.where((u) => !u.isDeleted)) {
       totals[u.id] = 0;
     }
     for (var entry in entries.where((e) => !e.isDeleted)) {
       int current = totals[entry.unitId] ?? 0;
       if (entry.type == TransactionType.take) {
-        current -= entry.rawAmount;
-      } else {
         current += entry.rawAmount;
+      } else {
+        current -= entry.rawAmount;
       }
       totals[entry.unitId] = current;
     }
     return totals;
   }
 
-  int getPartyCountForCategory(String category) {
-    return parties.where((p) => p.category == category && !p.isDeleted).length;
+  int getAccountsCountForCategory(String categoryName) {
+    return parties.where((p) => p.category == categoryName && !p.isDeleted).length;
   }
 
-  int getTransactionCountForUnit(String unitId) {
-    return entries.where((e) => e.unitId == unitId && !e.isDeleted).length;
+  int getAccountsCountForUnit(String unitId) {
+    final partyIds = entries.where((e) => e.unitId == unitId && !e.isDeleted).map((e) => e.partyId).toSet();
+    return partyIds.length;
   }
 
-  void addCategory(String cat) {
-    if (!categories.contains(cat)) {
-      categories.add(cat);
-      notifyListeners();
-    }
+  void addTransactions(List<LedgerEntry> newEntries) {
+    entries.addAll(newEntries);
+    notifyListeners();
   }
 
-  void updateCategory(String oldCat, String newCat) {
-    int idx = categories.indexOf(oldCat);
-    if (idx != -1) {
-      categories[idx] = newCat;
-      for (var p in parties) {
-        if (p.category == oldCat) p.category = newCat;
-      }
-      notifyListeners();
-    }
+  void addParty(AccountParty party) {
+    parties.add(party);
+    notifyListeners();
   }
 
-  void deleteCategory(String cat) {
-    categories.remove(cat);
+  void addCategory(String name) {
+    categories.add(CategoryItem(id: UuidUtil.generate(), name: name));
+    notifyListeners();
+  }
+
+  void updateCategory(String id, String newName) {
+    final cat = categories.firstWhere((c) => c.id == id);
+    cat.name = newName;
+    notifyListeners();
+  }
+
+  void deleteCategory(String id) {
+    categories.removeWhere((c) => c.id == id);
     notifyListeners();
   }
 
@@ -197,46 +189,16 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void updateUnit(UnitCurrency unit) {
-    int idx = units.indexWhere((u) => u.id == unit.id);
-    if (idx != -1) {
-      units[idx] = unit;
-      notifyListeners();
-    }
+  void updateUnit(String id, String name, String symbol, int decimals) {
+    final u = units.firstWhere((element) => element.id == id);
+    u.name = name;
+    u.symbol = symbol;
+    u.decimalPlaces = decimals;
+    notifyListeners();
   }
 
   void deleteUnit(String id) {
-    int idx = units.indexWhere((u) => u.id == id);
-    if (idx != -1) {
-      units[idx].isDeleted = true;
-      notifyListeners();
-    }
-  }
-
-  void addParty(AccountParty party) {
-    parties.add(party);
-    notifyListeners();
-  }
-
-  void addTransactions(List<LedgerEntry> newEntries) {
-    entries.addAll(newEntries);
-    notifyListeners();
-  }
-
-  void deleteMultipleEntries(List<String> ids) {
-    for (var id in ids) {
-      int idx = entries.indexWhere((e) => e.id == id);
-      if (idx != -1) entries[idx] = LedgerEntry(
-        id: entries[idx].id,
-        partyId: entries[idx].partyId,
-        unitId: entries[idx].unitId,
-        rawAmount: entries[idx].rawAmount,
-        type: entries[idx].type,
-        date: entries[idx].date,
-        note: entries[idx].note,
-        isDeleted: true,
-      );
-    }
+    units.removeWhere((u) => u.id == id);
     notifyListeners();
   }
 
@@ -263,6 +225,14 @@ class AppState extends ChangeNotifier {
   void updateLabels(String take, String pay) {
     takeLabel = take;
     payLabel = pay;
+    notifyListeners();
+  }
+
+  void updatePersonalInfo(String ar, String en, String phone, String address) {
+    storeNameAr = ar;
+    storeNameEn = en;
+    storePhone = phone;
+    storeAddress = address;
     notifyListeners();
   }
 }
