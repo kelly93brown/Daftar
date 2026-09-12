@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/app_state.dart';
+import '../services/notification_service.dart';
 import '../screens/add_account_screen.dart';
 import '../screens/settings_screen.dart';
 
-// دالة عرض إشعار علوي احترافي (يشبه إشعارات الهاتف المنسدلة)
 void showTopNotification(BuildContext context, {required String title, required String message, IconData icon = Icons.check_circle}) {
+  HapticFeedback.heavyImpact(); // اهتزاز عند ظهور الإشعار الداخلي
   final overlay = Overlay.of(context);
   late OverlayEntry entry;
   entry = OverlayEntry(
@@ -19,28 +21,19 @@ void showTopNotification(BuildContext context, {required String title, required 
           tween: Tween(begin: -80.0, end: 0.0),
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeOutBack,
-          builder: (context, val, child) => Transform.translate(
-            offset: Offset(0, val),
-            child: child,
-          ),
+          builder: (context, val, child) => Transform.translate(offset: Offset(0, val), child: child),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: const Color(0xFF0D4E42),
               borderRadius: BorderRadius.circular(16),
-              boxShadow: const [
-                BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4)),
-              ],
+              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))],
             ),
             child: Directionality(
               textDirection: TextDirection.rtl,
               child: Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: Colors.white24,
-                    radius: 18,
-                    child: Icon(icon, color: Colors.amberAccent, size: 20),
-                  ),
+                  CircleAvatar(backgroundColor: Colors.white24, radius: 18, child: Icon(icon, color: Colors.amberAccent, size: 20)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -61,11 +54,8 @@ void showTopNotification(BuildContext context, {required String title, required 
       ),
     ),
   );
-
   overlay.insert(entry);
-  Future.delayed(const Duration(seconds: 4), () {
-    entry.remove();
-  });
+  Future.delayed(const Duration(seconds: 4), () { entry.remove(); });
 }
 
 class AppSideDrawer extends StatelessWidget {
@@ -88,13 +78,12 @@ class AppSideDrawer extends StatelessWidget {
                 Navigator.pop(ctx);
                 final path = await state.exportBackup();
                 final fileName = path.split('/').last;
-                // إظهار الإشعار العلوي فور اكتمال النسخ
-                showTopNotification(
-                  context,
-                  title: 'تم حفظ نسخة احتياطية',
-                  message: 'تم حفظ الملف بنجاح: $fileName في مجلد Downloads/Daftar',
-                  icon: Icons.cloud_done,
-                );
+                
+                // إشعار داخلي
+                showTopNotification(context, title: 'تم حفظ نسخة احتياطية', message: 'تم حفظ الملف بنجاح: $fileName', icon: Icons.cloud_done);
+                
+                // إشعار النظام المرفق بصوت واهتزاز
+                NotificationService.showNotification(title: "نجاح النسخ الاحتياطي", body: "تم حفظ النسخة بنجاح في مجلد Downloads/Daftar");
               },
               child: const Text('حفظ الآن', style: TextStyle(color: Colors.white)),
             ),
@@ -112,9 +101,7 @@ class AppSideDrawer extends StatelessWidget {
     }
     if (files.isEmpty && Platform.isAndroid) {
       final downloadDir = Directory('/storage/emulated/0/Download');
-      if (downloadDir.existsSync()) {
-        files = downloadDir.listSync().where((f) => f.path.endsWith('.json')).toList();
-      }
+      if (downloadDir.existsSync()) files = downloadDir.listSync().where((f) => f.path.endsWith('.json')).toList();
     }
 
     showModalBottomSheet(
@@ -145,18 +132,21 @@ class AppSideDrawer extends StatelessWidget {
                       final name = file.path.split('/').last;
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF6F8F8),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        decoration: BoxDecoration(color: const Color(0xFFF6F8F8), borderRadius: BorderRadius.circular(12)),
                         child: ListTile(
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           leading: const Icon(Icons.insert_drive_file_outlined, color: Color(0xFF0D4E42)),
-                          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          // إصلاح اتجاه النص ليظهر بشكل سليم
+                          title: Directionality(
+                            textDirection: TextDirection.ltr,
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))
+                            ),
+                          ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // زر الاستعادة
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF0D4E42),
@@ -168,18 +158,13 @@ class AppSideDrawer extends StatelessWidget {
                                   Navigator.pop(ctx);
                                   final success = await state.restoreFromFile(File(file.path));
                                   if (success) {
-                                    showTopNotification(
-                                      context,
-                                      title: 'تم استعادة النسخة الاحتياطية',
-                                      message: 'تم تحديث واسترجاع جميع بيانات التطبيق بنجاح.',
-                                      icon: Icons.restore_page,
-                                    );
+                                    showTopNotification(context, title: 'تم استعادة النسخة الاحتياطية', message: 'تم تحديث جميع بيانات التطبيق بنجاح.', icon: Icons.restore_page);
+                                    NotificationService.showNotification(title: "نجاح الاستعادة", body: "تم استعادة بيانات النسخة الاحتياطية بسلام.");
                                   }
                                 },
                                 child: const Text('استعادة', style: TextStyle(color: Colors.white, fontSize: 12)),
                               ),
                               const SizedBox(width: 6),
-                              // زر الحذف
                               IconButton(
                                 icon: const Icon(Icons.delete_outline, color: Colors.red, size: 22),
                                 onPressed: () {
@@ -195,9 +180,7 @@ class AppSideDrawer extends StatelessWidget {
                                           onPressed: () async {
                                             Navigator.pop(confirmCtx);
                                             await state.deleteBackupFile(File(file.path));
-                                            setModalState(() {
-                                              files.removeWhere((f) => f.path == file.path);
-                                            });
+                                            setModalState(() { files.removeWhere((f) => f.path == file.path); });
                                           },
                                           child: const Text('حذف', style: TextStyle(color: Colors.white)),
                                         ),
@@ -221,30 +204,9 @@ class AppSideDrawer extends StatelessWidget {
     );
   }
 
-  Widget _sectionTitle(String title) {
-    return Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 4), child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)));
-  }
-
-  Widget _drawerTile(IconData icon, String title, VoidCallback onTap, {String? badge}) {
-    return ListTile(
-      dense: true,
-      leading: Icon(icon, color: const Color(0xFF0D4E42), size: 20),
-      title: Row(
-        children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-          if (badge != null) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(8)),
-              child: Text(badge, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ],
-      ),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
-      onTap: onTap,
-    );
+  void _showSnack(BuildContext context, String msg) {
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -283,36 +245,43 @@ class AppSideDrawer extends StatelessWidget {
                 ],
               ),
             ),
-
             _sectionTitle('الإجراءات الرئيسية'),
-            _drawerTile(Icons.person_add_alt, 'اضافة حساب', () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => AddAccountScreen(state: state)));
-            }),
+            _drawerTile(Icons.person_add_alt, 'اضافة حساب', () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => AddAccountScreen(state: state))); }),
             const Divider(),
-
             _sectionTitle('إدارة البيانات'),
-            _drawerTile(Icons.cloud_upload_outlined, 'حفظ نسخة احتياطية', () {
-              Navigator.pop(context);
-              _showBackupDialog(context);
-            }),
-            _drawerTile(Icons.history, 'استرجاع نسخة احتياطية', () {
-              Navigator.pop(context);
-              _showRestoreDialog(context);
-            }),
+            _drawerTile(Icons.cloud_upload_outlined, 'حفظ نسخة احتياطية', () { Navigator.pop(context); _showBackupDialog(context); }),
+            _drawerTile(Icons.history, 'استرجاع نسخة احتياطية', () { Navigator.pop(context); _showRestoreDialog(context); }),
             const Divider(),
-
             _sectionTitle('إعدادات التطبيق'),
-            _drawerTile(Icons.settings_outlined, 'الاعدادات', () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsScreen(state: state)));
-            }),
+            _drawerTile(Icons.settings_outlined, 'الاعدادات', () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsScreen(state: state))); }),
             const SizedBox(height: 20),
             const Center(child: Text('v2.2.14', style: TextStyle(color: Colors.grey, fontSize: 12))),
             const SizedBox(height: 20),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _sectionTitle(String title) {
+    return Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 4), child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)));
+  }
+
+  Widget _drawerTile(IconData icon, String title, VoidCallback onTap, {String? badge}) {
+    return ListTile(
+      dense: true,
+      leading: Icon(icon, color: const Color(0xFF0D4E42), size: 20),
+      title: Row(
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          if (badge != null) ...[
+            const SizedBox(width: 8),
+            Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(8)), child: Text(badge, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))),
+          ],
+        ],
+      ),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
+      onTap: onTap,
     );
   }
 }
