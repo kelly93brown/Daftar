@@ -70,6 +70,12 @@ class UnitCurrency {
   String formatValue(int rawValue) {
     double val = rawValue / pow(10, decimalPlaces);
     String base = val.toStringAsFixed(decimalPlaces);
+    
+    // إلغاء الأصفار الصفرية للوزن (مثل 20.00 تصبح 20)
+    if (kind == UnitKind.weight && base.contains('.')) {
+      base = base.replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '');
+    }
+    
     return formatWithSpaces(base);
   }
 
