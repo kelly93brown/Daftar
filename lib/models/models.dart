@@ -15,6 +15,20 @@ class UuidUtil {
   }
 }
 
+// دالة إضافة مسافة بعد كل 3 أرقام
+String formatWithSpaces(String numberStr) {
+  bool isNegative = numberStr.startsWith('-');
+  String clean = isNegative ? numberStr.substring(1) : numberStr;
+  List<String> parts = clean.split('.');
+  String intPart = parts[0];
+  String decPart = parts.length > 1 ? '.${parts[1]}' : '';
+
+  RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+  String formattedInt = intPart.replaceAllMapped(reg, (Match m) => '${m[1]} ');
+
+  return (isNegative ? '-' : '') + formattedInt + decPart;
+}
+
 enum PartyType { customer, supplier, expense }
 enum TransactionType { take, pay }
 enum UnitKind { weight, currency }
@@ -24,11 +38,7 @@ class CategoryItem {
   String name;
   bool isDeleted;
 
-  CategoryItem({
-    required this.id,
-    required this.name,
-    this.isDeleted = false,
-  });
+  CategoryItem({required this.id, required this.name, this.isDeleted = false});
 
   Map<String, dynamic> toJson() => {'id': id, 'name': name, 'isDeleted': isDeleted};
   factory CategoryItem.fromJson(Map<String, dynamic> json) => CategoryItem(
@@ -59,11 +69,13 @@ class UnitCurrency {
 
   String formatValue(int rawValue) {
     double val = rawValue / pow(10, decimalPlaces);
-    return val.toStringAsFixed(decimalPlaces);
+    String base = val.toStringAsFixed(decimalPlaces);
+    return formatWithSpaces(base);
   }
 
   int parseInput(String input) {
-    double val = double.tryParse(input.replaceAll(',', '.')) ?? 0.0;
+    String cleanInput = input.replaceAll(' ', '').replaceAll(',', '.');
+    double val = double.tryParse(cleanInput) ?? 0.0;
     return (val * pow(10, decimalPlaces)).round();
   }
 
@@ -132,7 +144,7 @@ class LedgerEntry {
   final String id;
   final String? compositeGroupId;
   final String partyId;
-  final String unitId;
+  String unitId;
   final int rawAmount;
   final TransactionType type;
   final DateTime date;
