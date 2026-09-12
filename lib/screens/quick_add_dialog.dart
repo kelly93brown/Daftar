@@ -2,21 +2,22 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
 
-void showQuickAddModal(BuildContext context, AppState state) {
+void showQuickAddModal(BuildContext context, AppState state, {String? defaultPartyId}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (ctx) => Directionality(
       textDirection: TextDirection.rtl,
-      child: QuickAddModalContent(state: state),
+      child: QuickAddModalContent(state: state, preselectedPartyId: defaultPartyId),
     ),
   );
 }
 
 class QuickAddModalContent extends StatefulWidget {
   final AppState state;
-  const QuickAddModalContent({super.key, required this.state});
+  final String? preselectedPartyId;
+  const QuickAddModalContent({super.key, required this.state, this.preselectedPartyId});
 
   @override
   State<QuickAddModalContent> createState() => _QuickAddModalContentState();
@@ -36,9 +37,8 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
   @override
   void initState() {
     super.initState();
-    if (widget.state.parties.isNotEmpty) {
-      _selectedPartyId = widget.state.parties.first.id;
-    }
+    _selectedPartyId = widget.preselectedPartyId ??
+        (widget.state.parties.isNotEmpty ? widget.state.parties.first.id : null);
     _primaryUnitId = widget.state.units.first.id;
     if (widget.state.units.length > 1) {
       _secondaryUnitId = widget.state.units[1].id;
@@ -51,6 +51,30 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
     _secondaryAmountCtrl.dispose();
     _noteCtrl.dispose();
     super.dispose();
+  }
+
+  // نافذة البحث عن الحساب (مطابقة للصورة 25)
+  void _openPartySearchSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: StatefulBuilder(
+          builder: (context, setSheetState) {
+            return _PartySearchSheet(
+              state: widget.state,
+              selectedPartyId: _selectedPartyId,
+              onSelected: (party) {
+                setState(() => _selectedPartyId = party.id);
+                Navigator.pop(context);
+              },
+            );
+          },
+        ),
+      ),
+    );
   }
 
   void _submit(TransactionType type) {
@@ -109,6 +133,10 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
     final state = widget.state;
     final primaryUnit = state.units.firstWhere((u) => u.id == _primaryUnitId);
     final isPrimaryWeight = primaryUnit.kind == UnitKind.weight;
+    final currentParty = state.parties.firstWhere(
+      (p) => p.id == _selectedPartyId,
+      orElse: () => AccountParty(id: '', name: 'اختر الحساب'),
+    );
 
     return Container(
       padding: EdgeInsets.only(
@@ -125,36 +153,36 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // مؤشر السحب
-            Container(
-              width: 44,
-              height: 4,
-              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
-            ),
+            Container(width: 44, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
             const SizedBox(height: 12),
-            const Text(
-              'إضافة معاملة سريعة',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D4E42)),
-            ),
+            const Text('إضافة معاملة سريعة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D4E42))),
             const SizedBox(height: 16),
 
-            // منتقي التاريخ والطرف
+            // زر منتقي الحساب القابل للبحث مع التاريخ
             Row(
               children: [
                 Expanded(
                   flex: 2,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _selectedPartyId,
-                    decoration: InputDecoration(
-                      labelText: 'اسم الزبون / المورد',
-                      filled: true,
-                      fillColor: const Color(0xFFF6F8F8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  child: InkWell(
+                    onTap: _openPartySearchSheet,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      decoration: BoxDecoration(color: const Color(0xFFF6F8F8), borderRadius: BorderRadius.circular(12)),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.person, color: Color(0xFF0D4E42), size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              currentParty.name,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                        ],
+                      ),
                     ),
-                    items: state.parties.where((p) => !p.isDeleted).map((p) {
-                      return DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis));
-                    }).toList(),
-                    onChanged: (val) => setState(() => _selectedPartyId = val),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -171,18 +199,15 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
                       if (picked != null) setState(() => _selectedDate = picked);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF6F8F8),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      decoration: BoxDecoration(color: const Color(0xFFF6F8F8), borderRadius: BorderRadius.circular(12)),
                       child: Column(
                         children: [
-                          const Icon(Icons.calendar_today, size: 18, color: Color(0xFF0D4E42)),
+                          const Icon(Icons.calendar_today, size: 16, color: Color(0xFF0D4E42)),
                           const SizedBox(height: 4),
                           Text(
                             "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}",
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -193,7 +218,7 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
             ),
             const SizedBox(height: 14),
 
-            // الحقل الأساسي (التسمية الديناميكية: الوزن / المبلغ)
+            // الحقل الديناميكي (وزن / مبلغ)
             Row(
               children: [
                 Expanded(
@@ -203,7 +228,7 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
                       labelText: isPrimaryWeight ? 'الوزن (${primaryUnit.symbol})' : 'المبلغ (${primaryUnit.symbol})',
-                      hintText: isPrimaryWeight ? 'مثال: 12.450' : 'مثال: 50000',
+                      hintText: isPrimaryWeight ? '12.450' : '50000',
                       filled: true,
                       fillColor: const Color(0xFFF6F8F8),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -232,7 +257,7 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
               ],
             ),
 
-            // زر المعاملة المركبة (Progressive Disclosure)
+            // زر المعاملة المركبة
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
@@ -245,7 +270,6 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
               ),
             ),
 
-            // سطر المعاملة المركبة عند التفعيل
             if (_isComposite) ...[
               Row(
                 children: [
@@ -286,33 +310,17 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
               const SizedBox(height: 10),
             ],
 
-            // حقل التفاصيل وأيقونة الكاميرا
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _noteCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'التفاصيل أو البيان (مثال: دفعة خاتم 3 غرام)',
-                      filled: true,
-                      fillColor: const Color(0xFFF6F8F8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.camera_alt_outlined, color: Color(0xFF0D4E42)),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('تم تفعيل الكاميرا لإرفاق صورة السند/القطعة')),
-                    );
-                  },
-                ),
-              ],
+            TextField(
+              controller: _noteCtrl,
+              decoration: InputDecoration(
+                hintText: 'التفاصيل أو البيان (مثال: دفعة كسر عيار 18)',
+                filled: true,
+                fillColor: const Color(0xFFF6F8F8),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
             ),
             const SizedBox(height: 18),
 
-            // زرا الإجراءين الكبيرين (أخذ ⬇️ / دفع ⬆️)
             Row(
               children: [
                 Expanded(
@@ -350,6 +358,101 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// نافذة منبثقة للبحث عن الحساب (مطابقة للصورة 25)
+class _PartySearchSheet extends StatefulWidget {
+  final AppState state;
+  final String? selectedPartyId;
+  final ValueChanged<AccountParty> onSelected;
+
+  const _PartySearchSheet({required this.state, required this.selectedPartyId, required this.onSelected});
+
+  @override
+  State<_PartySearchSheet> createState() => _PartySearchSheetState();
+}
+
+class _PartySearchSheetState extends State<_PartySearchSheet> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    const primaryTeal = Color(0xFF0D4E42);
+    final filtered = widget.state.parties.where((p) => !p.isDeleted).where((p) {
+      if (_query.isEmpty) return true;
+      return p.name.toLowerCase().contains(_query.toLowerCase()) || p.phone.contains(_query);
+    }).toList();
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+              Row(
+                children: const [
+                  Text('اسم الحساب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  SizedBox(width: 6),
+                  Icon(Icons.account_balance_wallet_outlined, color: primaryTeal),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // حقل البحث
+          TextField(
+            autofocus: true,
+            onChanged: (v) => setState(() => _query = v),
+            decoration: InputDecoration(
+              hintText: 'بحث',
+              prefixIcon: const Icon(Icons.search),
+              filled: true,
+              fillColor: const Color(0xFFF6F8F8),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          Expanded(
+            child: ListView.separated(
+              itemCount: filtered.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (ctx, i) {
+                final p = filtered[i];
+                final isSelected = p.id == widget.selectedPartyId;
+
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  leading: CircleAvatar(
+                    backgroundColor: const Color(0xFFE2EFEA),
+                    child: Text(
+                      p.name.isNotEmpty ? p.name[0] : '?',
+                      style: const TextStyle(color: primaryTeal, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(p.phone, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  trailing: isSelected ? const Icon(Icons.check_circle, color: primaryTeal) : null,
+                  onTap: () => widget.onSelected(p),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
