@@ -51,22 +51,8 @@ class AppState extends ChangeNotifier {
     final dzdCurrencyId = UuidUtil.generate();
 
     units = [
-      UnitCurrency(
-        id: goldUnitId,
-        name: 'ذهب',
-        symbol: 'g',
-        code: 'XAU',
-        kind: UnitKind.weight,
-        decimalPlaces: 3,
-      ),
-      UnitCurrency(
-        id: dzdCurrencyId,
-        name: 'دينار',
-        symbol: 'DA',
-        code: 'DZD',
-        kind: UnitKind.currency,
-        decimalPlaces: 2,
-      ),
+      UnitCurrency(id: goldUnitId, name: 'ذهب', symbol: 'g', code: 'XAU', kind: UnitKind.weight, decimalPlaces: 3),
+      UnitCurrency(id: dzdCurrencyId, name: 'دينار', symbol: 'DA', code: 'DZD', kind: UnitKind.currency, decimalPlaces: 2),
     ];
 
     final p1 = UuidUtil.generate();
@@ -80,24 +66,8 @@ class AppState extends ChangeNotifier {
     ];
 
     entries = [
-      LedgerEntry(
-        id: UuidUtil.generate(),
-        partyId: p1,
-        unitId: goldUnitId,
-        rawAmount: 59000,
-        type: TransactionType.take,
-        date: DateTime.now(),
-        note: 'خاتم',
-      ),
-      LedgerEntry(
-        id: UuidUtil.generate(),
-        partyId: p1,
-        unitId: dzdCurrencyId,
-        rawAmount: 400000,
-        type: TransactionType.pay,
-        date: DateTime.now(),
-        note: 'dzd',
-      ),
+      LedgerEntry(id: UuidUtil.generate(), partyId: p1, unitId: goldUnitId, rawAmount: 59000, type: TransactionType.take, date: DateTime.now(), note: 'خاتم'),
+      LedgerEntry(id: UuidUtil.generate(), partyId: p1, unitId: dzdCurrencyId, rawAmount: 400000, type: TransactionType.pay, date: DateTime.now(), note: 'dzd'),
     ];
 
     pdfColumns = [
@@ -117,50 +87,46 @@ class AppState extends ChangeNotifier {
 
   Map<String, int> getBalancesForParty(String partyId) {
     final Map<String, int> balances = {};
-    for (var u in units.where((u) => !u.isDeleted)) {
-      balances[u.id] = 0;
-    }
+    for (var u in units.where((u) => !u.isDeleted)) balances[u.id] = 0;
     for (var entry in entries.where((e) => e.partyId == partyId && !e.isDeleted)) {
-      int current = balances[entry.unitId] ?? 0;
-      if (entry.type == TransactionType.take) {
-        current += entry.rawAmount;
-      } else {
-        current -= entry.rawAmount;
-      }
-      balances[entry.unitId] = current;
+      balances[entry.unitId] = (balances[entry.unitId] ?? 0) + (entry.type == TransactionType.take ? entry.rawAmount : -entry.rawAmount);
     }
     return balances;
   }
 
   Map<String, int> getTotalStoreBalances() {
     final Map<String, int> totals = {};
-    for (var u in units.where((u) => !u.isDeleted)) {
-      totals[u.id] = 0;
-    }
+    for (var u in units.where((u) => !u.isDeleted)) totals[u.id] = 0;
     for (var entry in entries.where((e) => !e.isDeleted)) {
-      int current = totals[entry.unitId] ?? 0;
-      if (entry.type == TransactionType.take) {
-        current += entry.rawAmount;
-      } else {
-        current -= entry.rawAmount;
-      }
-      totals[entry.unitId] = current;
+      totals[entry.unitId] = (totals[entry.unitId] ?? 0) + (entry.type == TransactionType.take ? entry.rawAmount : -entry.rawAmount);
     }
     return totals;
   }
 
-  int getAccountsCountForCategory(String categoryName) {
-    return parties.where((p) => p.category == categoryName && !p.isDeleted).length;
-  }
-
-  int getAccountsCountForUnit(String unitId) {
-    final partyIds = entries.where((e) => e.unitId == unitId && !e.isDeleted).map((e) => e.partyId).toSet();
-    return partyIds.length;
-  }
+  int getAccountsCountForCategory(String categoryName) => parties.where((p) => p.category == categoryName && !p.isDeleted).length;
+  int getAccountsCountForUnit(String unitId) => entries.where((e) => e.unitId == unitId && !e.isDeleted).map((e) => e.partyId).toSet().length;
 
   void addTransactions(List<LedgerEntry> newEntries) {
     entries.addAll(newEntries);
     notifyListeners();
+  }
+
+  void updateTransaction(String id, int newRawAmount, DateTime newDate, String newNote, TransactionType newType) {
+    final idx = entries.indexWhere((e) => e.id == id);
+    if (idx != -1) {
+      final old = entries[idx];
+      entries[idx] = LedgerEntry(id: old.id, compositeGroupId: old.compositeGroupId, partyId: old.partyId, unitId: old.unitId, rawAmount: newRawAmount, type: newType, date: newDate, note: newNote, isDeleted: old.isDeleted);
+      notifyListeners();
+    }
+  }
+
+  void deleteTransaction(String id) {
+    final idx = entries.indexWhere((e) => e.id == id);
+    if (idx != -1) {
+      final old = entries[idx];
+      entries[idx] = LedgerEntry(id: old.id, compositeGroupId: old.compositeGroupId, partyId: old.partyId, unitId: old.unitId, rawAmount: old.rawAmount, type: old.type, date: old.date, note: old.note, isDeleted: true);
+      notifyListeners();
+    }
   }
 
   void addParty(AccountParty party) {
@@ -168,17 +134,28 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateParty(String id, String newName, String newPhone, String newCategory) {
+    final party = parties.firstWhere((p) => p.id == id);
+    party.name = newName;
+    party.phone = newPhone;
+    party.category = newCategory;
+    notifyListeners();
+  }
+
+  void deleteParty(String id) {
+    final party = parties.firstWhere((p) => p.id == id);
+    party.isDeleted = true;
+    notifyListeners();
+  }
+
   void addCategory(String name) {
     categories.add(CategoryItem(id: UuidUtil.generate(), name: name));
     notifyListeners();
   }
-
   void updateCategory(String id, String newName) {
-    final cat = categories.firstWhere((c) => c.id == id);
-    cat.name = newName;
+    categories.firstWhere((c) => c.id == id).name = newName;
     notifyListeners();
   }
-
   void deleteCategory(String id) {
     categories.removeWhere((c) => c.id == id);
     notifyListeners();
@@ -188,51 +165,24 @@ class AppState extends ChangeNotifier {
     units.add(unit);
     notifyListeners();
   }
-
   void updateUnit(String id, String name, String symbol, int decimals) {
-    final u = units.firstWhere((element) => element.id == id);
+    final u = units.firstWhere((e) => e.id == id);
     u.name = name;
     u.symbol = symbol;
     u.decimalPlaces = decimals;
     notifyListeners();
   }
-
   void deleteUnit(String id) {
     units.removeWhere((u) => u.id == id);
     notifyListeners();
   }
 
-  void toggleHideBalances() {
-    hideBalances = !hideBalances;
-    notifyListeners();
-  }
-
-  void updateTheme(ThemeMode mode) {
-    themeMode = mode;
-    notifyListeners();
-  }
-
-  void updateFontScale(double scale) {
-    fontScale = scale;
-    notifyListeners();
-  }
-
-  void updateInvertColors(bool invert) {
-    invertDebitCreditColors = invert;
-    notifyListeners();
-  }
-
-  void updateLabels(String take, String pay) {
-    takeLabel = take;
-    payLabel = pay;
-    notifyListeners();
-  }
-
+  void toggleHideBalances() { hideBalances = !hideBalances; notifyListeners(); }
+  void updateTheme(ThemeMode mode) { themeMode = mode; notifyListeners(); }
+  void updateFontScale(double scale) { fontScale = scale; notifyListeners(); }
+  void updateInvertColors(bool invert) { invertDebitCreditColors = invert; notifyListeners(); }
+  void updateLabels(String take, String pay) { takeLabel = take; payLabel = pay; notifyListeners(); }
   void updatePersonalInfo(String ar, String en, String phone, String address) {
-    storeNameAr = ar;
-    storeNameEn = en;
-    storePhone = phone;
-    storeAddress = address;
-    notifyListeners();
+    storeNameAr = ar; storeNameEn = en; storePhone = phone; storeAddress = address; notifyListeners();
   }
 }
