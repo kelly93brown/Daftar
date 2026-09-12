@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../models/models.dart';
 
 class AppState extends ChangeNotifier {
@@ -156,7 +157,17 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  // طلب صلاحيات الملفات لتفادي ضياعها بعد إعادة التثبيت
+  Future<void> _requestPermissions() async {
+    if (Platform.isAndroid) {
+      await Permission.manageExternalStorage.request();
+      await Permission.storage.request();
+      await Permission.notification.request();
+    }
+  }
+
   Future<Directory> getBackupFolder() async {
+    await _requestPermissions();
     Directory? dir;
     if (Platform.isAndroid) {
       dir = Directory('/storage/emulated/0/Download/Daftar');
@@ -230,7 +241,6 @@ class AppState extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      debugPrint('Delete backup error: $e');
       return false;
     }
   }
@@ -267,7 +277,6 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // تسمح بتعديل الوحدة والمبلغ والتاريخ والبيان والنوع
   void updateTransaction(String id, String newUnitId, int newRawAmount, DateTime newDate, String newNote, TransactionType newType) {
     final idx = entries.indexWhere((e) => e.id == id);
     if (idx != -1) {
