@@ -32,7 +32,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
   String _searchQuery = '';
   final TextEditingController _searchCtrl = TextEditingController();
 
-  // مفتاح مخصص لالتقاط صورة الشاشة بدل مكتبة Screenshot المسببة للخطأ
   final GlobalKey _globalKey = GlobalKey();
 
   @override
@@ -41,8 +40,8 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
     super.dispose();
   }
 
-  // دالة التقاط صورة الشاشة Native
-  Future<List<int>?> _capturePng() async {
+  // تم تصحيح نوع الإرجاع ليصبح Uint8List ليتوافق مع مكتبة الـ PDF
+  Future<Uint8List?> _capturePng() async {
     try {
       RenderRepaintBoundary boundary = _globalKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
@@ -138,7 +137,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
             ]
           ],
         ),
-        // استخدمت RepaintBoundary لالتقاط صورة بديلة للمكتبة المحذوفة
         body: RepaintBoundary(
           key: _globalKey,
           child: Container(
