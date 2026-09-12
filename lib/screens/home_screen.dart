@@ -23,7 +23,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7F6),
-      drawer: AppSideDrawer(state: state),
+      // تم تغيير drawer إلى endDrawer لتفتح القائمة من اليسار
+      endDrawer: AppSideDrawer(state: state),
       appBar: AppBar(
         backgroundColor: primaryTeal,
         elevation: 0,
@@ -37,6 +38,12 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'إخفاء/إظهار الأرصدة',
             icon: Icon(state.hideBalances ? Icons.visibility_off : Icons.visibility, color: Colors.white),
             onPressed: state.toggleHideBalances,
+          ),
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu, color: Colors.white),
+              onPressed: () => Scaffold.of(context).openEndDrawer(),
+            ),
           ),
         ],
       ),
