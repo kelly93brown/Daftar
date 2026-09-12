@@ -1,4 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/models.dart';
 
 class AppState extends ChangeNotifier {
@@ -30,14 +33,15 @@ class AppState extends ChangeNotifier {
   String multipleMessageTemplate =
       "العميل: {customer}\nالعمليات:\n{items}\nالرصيد الإجمالي: {total} {currency}";
 
-  late List<CategoryItem> categories;
-  late List<UnitCurrency> units;
-  late List<AccountParty> parties;
-  late List<LedgerEntry> entries;
-  late List<PdfColumnConfig> pdfColumns;
+  List<CategoryItem> categories = [];
+  List<UnitCurrency> units = [];
+  List<AccountParty> parties = [];
+  List<LedgerEntry> entries = [];
+  List<PdfColumnConfig> pdfColumns = [];
 
   AppState() {
     _initDefaults();
+    loadFromDisk();
   }
 
   void _initDefaults() {
@@ -50,7 +54,6 @@ class AppState extends ChangeNotifier {
     final goldUnitId = UuidUtil.generate();
     final dzdCurrencyId = UuidUtil.generate();
 
-    // الذهب: رقمين بعد الفاصلة (2)، الدينار: بدون فواصل (0)
     units = [
       UnitCurrency(id: goldUnitId, name: 'ذهب', symbol: 'g', code: 'XAU', kind: UnitKind.weight, decimalPlaces: 2),
       UnitCurrency(id: dzdCurrencyId, name: 'دينار', symbol: 'DA', code: 'DZD', kind: UnitKind.currency, decimalPlaces: 0),
@@ -81,6 +84,147 @@ class AppState extends ChangeNotifier {
     ];
   }
 
+  // ==================== محرك التخزين الدائم ====================
+  Future<File> _getLocalDbFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/daftar_database.json');
+  }
+
+  Future<void> saveToDisk() async {
+    try {
+      final file = await _getLocalDbFile();
+      final data = {
+        'categories': categories.map((c) => c.toJson()).toList(),
+        'units': units.map((u) => u.toJson()).toList(),
+        'parties': parties.map((p) => p.toJson()).toList(),
+        'entries': entries.map((e) => e.toJson()).toList(),
+        'settings': {
+          'hideBalances': hideBalances,
+          'fontScale': fontScale,
+          'invertDebitCreditColors': invertDebitCreditColors,
+          'takeLabel': takeLabel,
+          'payLabel': payLabel,
+          'autoBackupHours': autoBackupHours,
+          'storeNameAr': storeNameAr,
+          'storeNameEn': storeNameEn,
+          'storePhone': storePhone,
+          'storeAddress': storeAddress,
+        }
+      };
+      await file.writeAsString(jsonEncode(data));
+    } catch (e) {
+      debugPrint('Error saving DB: $e');
+    }
+  }
+
+  Future<void> loadFromDisk() async {
+    try {
+      final file = await _getLocalDbFile();
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final data = jsonDecode(content);
+        if (data['categories'] != null) {
+          categories = (data['categories'] as List).map((c) => CategoryItem.fromJson(c)).toList();
+        }
+        if (data['units'] != null) {
+          units = (data['units'] as List).map((u) => UnitCurrency.fromJson(u)).toList();
+        }
+        if (data['parties'] != null) {
+          parties = (data['parties'] as List).map((p) => AccountParty.fromJson(p)).toList();
+        }
+        if (data['entries'] != null) {
+          entries = (data['entries'] as List).map((e) => LedgerEntry.fromJson(e)).toList();
+        }
+        if (data['settings'] != null) {
+          final s = data['settings'];
+          hideBalances = s['hideBalances'] ?? hideBalances;
+          fontScale = s['fontScale'] ?? fontScale;
+          invertDebitCreditColors = s['invertDebitCreditColors'] ?? invertDebitCreditColors;
+          takeLabel = s['takeLabel'] ?? takeLabel;
+          payLabel = s['payLabel'] ?? payLabel;
+          autoBackupHours = s['autoBackupHours'] ?? autoBackupHours;
+          storeNameAr = s['storeNameAr'] ?? storeNameAr;
+          storeNameEn = s['storeNameEn'] ?? storeNameEn;
+          storePhone = s['storePhone'] ?? storePhone;
+          storeAddress = s['storeAddress'] ?? storeAddress;
+        }
+        notifyListeners();
+      } else {
+        await saveToDisk();
+      }
+    } catch (e) {
+      debugPrint('Error loading DB: $e');
+    }
+  }
+
+  // ==================== مجلد النسخ الاحتياطي Downloads/Daftar ====================
+  Future<Directory> getBackupFolder() async {
+    Directory? dir;
+    if (Platform.isAndroid) {
+      dir = Directory('/storage/emulated/0/Download/Daftar');
+    }
+    if (dir == null || !dir.existsSync()) {
+      try {
+        if (dir != null) await dir.create(recursive: true);
+      } catch (_) {
+        final appDir = await getApplicationDocumentsDirectory();
+        dir = Directory('${appDir.path}/Downloads/Daftar');
+        if (!dir.existsSync()) await dir.create(recursive: true);
+      }
+    }
+    return dir!;
+  }
+
+  Future<String> exportBackup() async {
+    final folder = await getBackupFolder();
+    final now = DateTime.now();
+    final day = now.day.toString().padLeft(2, '0');
+    final month = now.month.toString().padLeft(2, '0');
+    final year = now.year.toString();
+    final hour = now.hour.toString().padLeft(2, '0');
+    final minute = now.minute.toString().padLeft(2, '0');
+
+    final filename = '${day}-${month}-${year}_${hour}${minute}.json';
+    final backupFile = File('${folder.path}/$filename');
+
+    final data = {
+      'timestamp': now.toIso8601String(),
+      'categories': categories.map((c) => c.toJson()).toList(),
+      'units': units.map((u) => u.toJson()).toList(),
+      'parties': parties.map((p) => p.toJson()).toList(),
+      'entries': entries.map((e) => e.toJson()).toList(),
+    };
+
+    await backupFile.writeAsString(jsonEncode(data));
+    return backupFile.path;
+  }
+
+  Future<bool> restoreFromFile(File file) async {
+    try {
+      final content = await file.readAsString();
+      final data = jsonDecode(content);
+      if (data['categories'] != null) {
+        categories = (data['categories'] as List).map((c) => CategoryItem.fromJson(c)).toList();
+      }
+      if (data['units'] != null) {
+        units = (data['units'] as List).map((u) => UnitCurrency.fromJson(u)).toList();
+      }
+      if (data['parties'] != null) {
+        parties = (data['parties'] as List).map((p) => AccountParty.fromJson(p)).toList();
+      }
+      if (data['entries'] != null) {
+        entries = (data['entries'] as List).map((e) => LedgerEntry.fromJson(e)).toList();
+      }
+      await saveToDisk();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Restore error: $e');
+      return false;
+    }
+  }
+
+  // ==================== باقي العمليات والمنطق ====================
   Color get debitColor => invertDebitCreditColors ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F);
   Color get creditColor => invertDebitCreditColors ? const Color(0xFFD32F2F) : const Color(0xFF2E7D32);
   Color get debitBg => invertDebitCreditColors ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE);
@@ -109,6 +253,7 @@ class AppState extends ChangeNotifier {
 
   void addTransactions(List<LedgerEntry> newEntries) {
     entries.addAll(newEntries);
+    saveToDisk();
     notifyListeners();
   }
 
@@ -117,6 +262,7 @@ class AppState extends ChangeNotifier {
     if (idx != -1) {
       final old = entries[idx];
       entries[idx] = LedgerEntry(id: old.id, compositeGroupId: old.compositeGroupId, partyId: old.partyId, unitId: old.unitId, rawAmount: newRawAmount, type: newType, date: newDate, note: newNote, isDeleted: old.isDeleted);
+      saveToDisk();
       notifyListeners();
     }
   }
@@ -126,12 +272,14 @@ class AppState extends ChangeNotifier {
     if (idx != -1) {
       final old = entries[idx];
       entries[idx] = LedgerEntry(id: old.id, compositeGroupId: old.compositeGroupId, partyId: old.partyId, unitId: old.unitId, rawAmount: old.rawAmount, type: old.type, date: old.date, note: old.note, isDeleted: true);
+      saveToDisk();
       notifyListeners();
     }
   }
 
   void addParty(AccountParty party) {
     parties.add(party);
+    saveToDisk();
     notifyListeners();
   }
 
@@ -140,30 +288,36 @@ class AppState extends ChangeNotifier {
     party.name = newName;
     party.phone = newPhone;
     party.category = newCategory;
+    saveToDisk();
     notifyListeners();
   }
 
   void deleteParty(String id) {
     final party = parties.firstWhere((p) => p.id == id);
     party.isDeleted = true;
+    saveToDisk();
     notifyListeners();
   }
 
   void addCategory(String name) {
     categories.add(CategoryItem(id: UuidUtil.generate(), name: name));
+    saveToDisk();
     notifyListeners();
   }
   void updateCategory(String id, String newName) {
     categories.firstWhere((c) => c.id == id).name = newName;
+    saveToDisk();
     notifyListeners();
   }
   void deleteCategory(String id) {
     categories.removeWhere((c) => c.id == id);
+    saveToDisk();
     notifyListeners();
   }
 
   void addUnit(UnitCurrency unit) {
     units.add(unit);
+    saveToDisk();
     notifyListeners();
   }
   void updateUnit(String id, String name, String symbol, int decimals) {
@@ -171,19 +325,21 @@ class AppState extends ChangeNotifier {
     u.name = name;
     u.symbol = symbol;
     u.decimalPlaces = decimals;
+    saveToDisk();
     notifyListeners();
   }
   void deleteUnit(String id) {
     units.removeWhere((u) => u.id == id);
+    saveToDisk();
     notifyListeners();
   }
 
-  void toggleHideBalances() { hideBalances = !hideBalances; notifyListeners(); }
-  void updateTheme(ThemeMode mode) { themeMode = mode; notifyListeners(); }
-  void updateFontScale(double scale) { fontScale = scale; notifyListeners(); }
-  void updateInvertColors(bool invert) { invertDebitCreditColors = invert; notifyListeners(); }
-  void updateLabels(String take, String pay) { takeLabel = take; payLabel = pay; notifyListeners(); }
+  void toggleHideBalances() { hideBalances = !hideBalances; saveToDisk(); notifyListeners(); }
+  void updateTheme(ThemeMode mode) { themeMode = mode; saveToDisk(); notifyListeners(); }
+  void updateFontScale(double scale) { fontScale = scale; saveToDisk(); notifyListeners(); }
+  void updateInvertColors(bool invert) { invertDebitCreditColors = invert; saveToDisk(); notifyListeners(); }
+  void updateLabels(String take, String pay) { takeLabel = take; payLabel = pay; saveToDisk(); notifyListeners(); }
   void updatePersonalInfo(String ar, String en, String phone, String address) {
-    storeNameAr = ar; storeNameEn = en; storePhone = phone; storeAddress = address; notifyListeners();
+    storeNameAr = ar; storeNameEn = en; storePhone = phone; storeAddress = address; saveToDisk(); notifyListeners();
   }
 }
