@@ -84,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: primaryTeal,
         elevation: 6,
         icon: const Icon(Icons.add_circle, color: Colors.white, size: 26),
-        label: const Text('معاملة سريعة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+        label: const Text('إضافة معاملة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
         onPressed: () => showQuickAddModal(context, state),
       ),
     );
