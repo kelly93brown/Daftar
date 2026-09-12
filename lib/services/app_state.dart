@@ -2,38 +2,33 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 
 class AppState extends ChangeNotifier {
-  // الحماية والخصوصية
   bool hideBalances = false;
   bool isPasscodeEnabled = false;
   String passcode = "1234";
   bool isBiometricEnabled = false;
 
-  // المظهر والتخصيص
   ThemeMode themeMode = ThemeMode.light;
-  double fontScale = 1.0; // 80% to 140%
-  bool invertDebitCreditColors = false; // افتراضياً: أخذ=أحمر، دفع=أخضر
+  double fontScale = 1.0;
+  bool invertDebitCreditColors = false;
 
-  // المسميات القابلة للتخصيص
   String takeLabel = "أخذ";
   String payLabel = "دفع";
 
-  // النسخ الاحتياطي التلقائي
   bool autoBackupEnabled = true;
   int autoBackupHours = 24;
 
-  // إعدادات الطباعة
   bool printHideInfo = false;
   bool printShowTime = true;
   String printDateFormat = "yyyy-MM-dd";
 
-  // قوالب الرسائل
   String singleMessageTemplate =
       "العميل: {customer}\n{type}: {amount} {currency}\n{note}\nالاجمالي: {total} {currency}\nالتاريخ: {date}";
 
   String multipleMessageTemplate =
       "العميل: {customer}\nالعمليات:\n{items}\nالرصيد الإجمالي: {total} {currency}";
 
-  // الوحدات والعملات الافتراضية
+  List<String> categories = ['عام', 'عملاء', 'موردين'];
+
   late List<UnitCurrency> units;
   late List<AccountParty> parties;
   late List<LedgerEntry> entries;
@@ -46,12 +41,12 @@ class AppState extends ChangeNotifier {
   void _initDefaults() {
     final goldUnitId = UuidUtil.generate();
     final dzdCurrencyId = UuidUtil.generate();
-    final ringUnitId = UuidUtil.generate();
 
+    // تم الإبقاء حصراً على الذهب والدينار في الواجهة الرئيسية
     units = [
       UnitCurrency(
         id: goldUnitId,
-        name: 'ذهب (عيار 18)',
+        name: 'ذهب',
         symbol: 'g',
         code: 'XAU',
         kind: UnitKind.weight,
@@ -59,101 +54,96 @@ class AppState extends ChangeNotifier {
       ),
       UnitCurrency(
         id: dzdCurrencyId,
-        name: 'دينار جزائري',
+        name: 'دينار',
         symbol: 'DA',
         code: 'DZD',
         kind: UnitKind.currency,
         decimalPlaces: 2,
       ),
-      UnitCurrency(
-        id: ringUnitId,
-        name: 'خواتم مصوغة',
-        symbol: 'قطعة',
-        code: 'RNG',
-        kind: UnitKind.weight,
-        decimalPlaces: 0,
-      ),
     ];
 
-    // أطراف افتراضية (زبائن وصاغة)
     final p1 = UuidUtil.generate();
     final p2 = UuidUtil.generate();
     final p3 = UuidUtil.generate();
 
     parties = [
-      AccountParty(id: p1, name: 'مجوهرات الأمانة (ورشة)', type: PartyType.supplier, phone: '0550123456', category: 'موردين'),
-      AccountParty(id: p2, name: 'الحاج بلقاسم', type: PartyType.customer, phone: '0661987654', category: 'عملاء'),
-      AccountParty(id: p3, name: 'صياغة النور', type: PartyType.customer, phone: '0770334455', category: 'عملاء'),
+      AccountParty(id: p1, name: 'Hamza', type: PartyType.customer, phone: '222#*', category: 'عملاء'),
+      AccountParty(id: p2, name: 'adel', type: PartyType.customer, phone: '06666599791', category: 'عملاء'),
+      AccountParty(id: p3, name: 'نورالدين', type: PartyType.supplier, phone: '123', category: 'موردين'),
     ];
 
-    // معاملات أولية لتوضيح الرصيد المزدوج
     entries = [
       LedgerEntry(
         id: UuidUtil.generate(),
-        partyId: p2,
+        partyId: p1,
         unitId: goldUnitId,
-        rawAmount: 25450, // 25.450 g ذهب
+        rawAmount: 59000,
         type: TransactionType.take,
-        date: DateTime.now().subtract(const Duration(days: 2)),
-        note: 'سوار عيار 18 كسر',
+        date: DateTime(2026, 9, 12, 5, 49),
+        note: 'خاتم',
       ),
       LedgerEntry(
         id: UuidUtil.generate(),
         partyId: p2,
         unitId: dzdCurrencyId,
-        rawAmount: 15000000, // 150,000.00 DA
+        rawAmount: 5000000,
         type: TransactionType.pay,
-        date: DateTime.now().subtract(const Duration(days: 1)),
-        note: 'دفعة نقدية باليد',
+        date: DateTime(2025, 11, 6),
+        note: 'خلص',
       ),
       LedgerEntry(
         id: UuidUtil.generate(),
-        partyId: p1,
-        unitId: goldUnitId,
-        rawAmount: 100000, // 100.000 g
+        partyId: p2,
+        unitId: dzdCurrencyId,
+        rawAmount: 500000,
+        type: TransactionType.take,
+        date: DateTime(2025, 11, 6),
+        note: 'حجرة',
+      ),
+      LedgerEntry(
+        id: UuidUtil.generate(),
+        partyId: p2,
+        unitId: dzdCurrencyId,
+        rawAmount: 400000,
         type: TransactionType.pay,
-        date: DateTime.now().subtract(const Duration(days: 5)),
-        note: 'طلبية سبائك صافي',
+        date: DateTime(2026, 9, 10),
+        note: 'dzd',
       ),
     ];
 
     pdfColumns = [
       PdfColumnConfig(id: 'seq', title: 'الرقم / التسلسل', isVisible: false),
       PdfColumnConfig(id: 'details', title: 'البيان / التفاصيل', isVisible: true),
-      PdfColumnConfig(id: 'pay', title: 'دفع (دائن)', isVisible: true),
-      PdfColumnConfig(id: 'take', title: 'أخذ (مدين)', isVisible: true),
+      PdfColumnConfig(id: 'pay', title: 'دفع', isVisible: true),
+      PdfColumnConfig(id: 'take', title: 'أخذ', isVisible: true),
       PdfColumnConfig(id: 'balance', title: 'الرصيد', isVisible: true),
       PdfColumnConfig(id: 'date', title: 'التاريخ', isVisible: true),
     ];
   }
 
-  // ألوان المعاملات (ديناميكية وفق إعدادات العكس)
   Color get debitColor => invertDebitCreditColors ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F);
   Color get creditColor => invertDebitCreditColors ? const Color(0xFFD32F2F) : const Color(0xFF2E7D32);
   Color get debitBg => invertDebitCreditColors ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE);
   Color get creditBg => invertDebitCreditColors ? const Color(0xFFFFEBEE) : const Color(0xFFE8F5E9);
 
-  // حساب الأرصدة المزدوجة لكل طرف
   Map<String, int> getBalancesForParty(String partyId) {
     final Map<String, int> balances = {};
     for (var u in units.where((element) => !element.isDeleted)) {
       balances[u.id] = 0;
     }
-
     final activeEntries = entries.where((e) => e.partyId == partyId && !e.isDeleted);
     for (var entry in activeEntries) {
       int current = balances[entry.unitId] ?? 0;
       if (entry.type == TransactionType.take) {
-        current += entry.rawAmount; // مدين (عليه)
+        current -= entry.rawAmount;
       } else {
-        current -= entry.rawAmount; // دائن (له)
+        current += entry.rawAmount;
       }
       balances[entry.unitId] = current;
     }
     return balances;
   }
 
-  // حساب إجمالي الأرصدة العامة في المتجر (ذهب ونقد)
   Map<String, int> getTotalStoreBalances() {
     final Map<String, int> totals = {};
     for (var u in units.where((element) => !element.isDeleted)) {
@@ -162,18 +152,91 @@ class AppState extends ChangeNotifier {
     for (var entry in entries.where((e) => !e.isDeleted)) {
       int current = totals[entry.unitId] ?? 0;
       if (entry.type == TransactionType.take) {
-        current += entry.rawAmount;
-      } else {
         current -= entry.rawAmount;
+      } else {
+        current += entry.rawAmount;
       }
       totals[entry.unitId] = current;
     }
     return totals;
   }
 
-  // إضافة معاملة فردية أو مركبة
+  int getPartyCountForCategory(String category) {
+    return parties.where((p) => p.category == category && !p.isDeleted).length;
+  }
+
+  int getTransactionCountForUnit(String unitId) {
+    return entries.where((e) => e.unitId == unitId && !e.isDeleted).length;
+  }
+
+  void addCategory(String cat) {
+    if (!categories.contains(cat)) {
+      categories.add(cat);
+      notifyListeners();
+    }
+  }
+
+  void updateCategory(String oldCat, String newCat) {
+    int idx = categories.indexOf(oldCat);
+    if (idx != -1) {
+      categories[idx] = newCat;
+      for (var p in parties) {
+        if (p.category == oldCat) p.category = newCat;
+      }
+      notifyListeners();
+    }
+  }
+
+  void deleteCategory(String cat) {
+    categories.remove(cat);
+    notifyListeners();
+  }
+
+  void addUnit(UnitCurrency unit) {
+    units.add(unit);
+    notifyListeners();
+  }
+
+  void updateUnit(UnitCurrency unit) {
+    int idx = units.indexWhere((u) => u.id == unit.id);
+    if (idx != -1) {
+      units[idx] = unit;
+      notifyListeners();
+    }
+  }
+
+  void deleteUnit(String id) {
+    int idx = units.indexWhere((u) => u.id == id);
+    if (idx != -1) {
+      units[idx].isDeleted = true;
+      notifyListeners();
+    }
+  }
+
+  void addParty(AccountParty party) {
+    parties.add(party);
+    notifyListeners();
+  }
+
   void addTransactions(List<LedgerEntry> newEntries) {
     entries.addAll(newEntries);
+    notifyListeners();
+  }
+
+  void deleteMultipleEntries(List<String> ids) {
+    for (var id in ids) {
+      int idx = entries.indexWhere((e) => e.id == id);
+      if (idx != -1) entries[idx] = LedgerEntry(
+        id: entries[idx].id,
+        partyId: entries[idx].partyId,
+        unitId: entries[idx].unitId,
+        rawAmount: entries[idx].rawAmount,
+        type: entries[idx].type,
+        date: entries[idx].date,
+        note: entries[idx].note,
+        isDeleted: true,
+      );
+    }
     notifyListeners();
   }
 
