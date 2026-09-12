@@ -19,6 +19,18 @@ enum PartyType { customer, supplier, expense }
 enum TransactionType { take, pay }
 enum UnitKind { weight, currency }
 
+class CategoryItem {
+  final String id;
+  String name;
+  bool isDeleted;
+
+  CategoryItem({
+    required this.id,
+    required this.name,
+    this.isDeleted = false,
+  });
+}
+
 class UnitCurrency {
   final String id;
   String name;
@@ -78,7 +90,6 @@ class LedgerEntry {
   final TransactionType type;
   final DateTime date;
   final String note;
-  final String? imageAttachment;
   final bool isDeleted;
 
   LedgerEntry({
@@ -90,7 +101,6 @@ class LedgerEntry {
     required this.type,
     required this.date,
     this.note = '',
-    this.imageAttachment,
     this.isDeleted = false,
   });
 }
@@ -100,9 +110,5 @@ class PdfColumnConfig {
   String title;
   bool isVisible;
 
-  PdfColumnConfig({
-    required this.id,
-    required this.title,
-    this.isVisible = true,
-  });
+  PdfColumnConfig({required this.id, required this.title, this.isVisible = true});
 }
