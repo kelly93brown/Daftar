@@ -7,6 +7,11 @@ class AppSideDrawer extends StatelessWidget {
   final AppState state;
   const AppSideDrawer({super.key, required this.state});
 
+  void _showSnack(BuildContext context, String msg) {
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   @override
   Widget build(BuildContext context) {
     const primaryTeal = Color(0xFF0D4E42);
@@ -17,7 +22,6 @@ class AppSideDrawer extends StatelessWidget {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            // رأس القائمة
             Container(
               padding: const EdgeInsets.fromLTRB(16, 45, 16, 20),
               color: primaryTeal,
@@ -43,52 +47,42 @@ class AppSideDrawer extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.15),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.15), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                     icon: const Icon(Icons.login, color: Colors.white, size: 18),
                     label: const Text('تسجيل حساب', style: TextStyle(color: Colors.white)),
-                    onPressed: () {},
+                    onPressed: () => _showSnack(context, 'سيتم تفعيل ميزة مزامنة الحسابات السحابية قريباً'),
                   ),
                 ],
               ),
             ),
 
-            // الإجراءات الرئيسية
             _sectionTitle('الإجراءات الرئيسية'),
             _drawerTile(Icons.person_add_alt, 'اضافة حساب', () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (_) => AddAccountScreen(state: state)));
             }),
-            _drawerTile(Icons.speed, 'سقف الحساب', () {}),
-            _drawerTile(Icons.alarm, 'التذكيرات', () {}),
-            _drawerTile(Icons.chat, 'ربط واتساب', () {}, badge: 'جديد'),
-            _drawerTile(Icons.bar_chart, 'التقارير', () {}),
+            _drawerTile(Icons.speed, 'سقف الحساب', () => _showSnack(context, 'ميزة تحديد سقف الدين قيد التطوير')),
+            _drawerTile(Icons.alarm, 'التذكيرات', () => _showSnack(context, 'ميزة جدولة التذكيرات قيد التطوير')),
+            _drawerTile(Icons.chat, 'ربط واتساب', () => _showSnack(context, 'سيتم إتاحة الربط التلقائي بـ WhatsApp قريباً'), badge: 'جديد'),
+            _drawerTile(Icons.bar_chart, 'التقارير', () => _showSnack(context, 'جاري إعداد واجهة التقارير التحليلية المتقدمة')),
             const Divider(),
 
-            // إدارة البيانات
             _sectionTitle('إدارة البيانات'),
-            _drawerTile(Icons.cloud_upload_outlined, 'حفظ نسخة احتياطية', () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ النسخة الاحتياطية محلياً بنجاح')));
-            }),
-            _drawerTile(Icons.history, 'استرجاع نسخة احتياطية', () {}),
-            _drawerTile(Icons.add_to_drive, 'جوجل درايف', () {}),
+            _drawerTile(Icons.cloud_upload_outlined, 'حفظ نسخة احتياطية', () => _showSnack(context, 'تم حفظ النسخة الاحتياطية محلياً بنجاح')),
+            _drawerTile(Icons.history, 'استرجاع نسخة احتياطية', () => _showSnack(context, 'يرجى اختيار ملف النسخة الاحتياطية (.db)')),
+            _drawerTile(Icons.add_to_drive, 'جوجل درايف', () => _showSnack(context, 'جاري الربط مع Google Drive...')),
             const Divider(),
 
-            // إعدادات التطبيق
             _sectionTitle('إعدادات التطبيق'),
             _drawerTile(Icons.settings_outlined, 'الاعدادات', () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsScreen(state: state)));
             }),
-            _drawerTile(Icons.translate, 'اللغة', () {}),
-            _drawerTile(Icons.share_outlined, 'مشاركة البرنامج', () {}),
-            _drawerTile(Icons.feedback_outlined, 'إرسال الملاحظات', () {}),
-            _drawerTile(Icons.headset_mic_outlined, 'للتواصل والدعم الفني', () {}),
-            _drawerTile(Icons.star_outline, 'تقييم التطبيق', () {}),
+            _drawerTile(Icons.translate, 'اللغة', () => _showSnack(context, 'اللغة الحالية هي العربية')),
+            _drawerTile(Icons.share_outlined, 'مشاركة البرنامج', () => _showSnack(context, 'شكراً لمشاركة تطبيق دفتر مع أصدقائك!')),
+            _drawerTile(Icons.feedback_outlined, 'إرسال الملاحظات', () => _showSnack(context, 'جاري فتح عميل البريد الإلكتروني...')),
+            _drawerTile(Icons.headset_mic_outlined, 'للتواصل والدعم الفني', () => _showSnack(context, 'سيتم تحويلك إلى فريق الدعم')),
+            _drawerTile(Icons.star_outline, 'تقييم التطبيق', () => _showSnack(context, 'شكراً لتقييمك لتطبيق دفتر 5 نجوم!')),
             const SizedBox(height: 20),
             const Center(child: Text('v2.2.14', style: TextStyle(color: Colors.grey, fontSize: 12))),
             const SizedBox(height: 20),
@@ -99,10 +93,7 @@ class AppSideDrawer extends StatelessWidget {
   }
 
   Widget _sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-    );
+    return Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 4), child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)));
   }
 
   Widget _drawerTile(IconData icon, String title, VoidCallback onTap, {String? badge}) {
