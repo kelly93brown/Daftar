@@ -29,6 +29,13 @@ class CategoryItem {
     required this.name,
     this.isDeleted = false,
   });
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'isDeleted': isDeleted};
+  factory CategoryItem.fromJson(Map<String, dynamic> json) => CategoryItem(
+        id: json['id'] ?? UuidUtil.generate(),
+        name: json['name'] ?? '',
+        isDeleted: json['isDeleted'] ?? false,
+      );
 }
 
 class UnitCurrency {
@@ -46,7 +53,7 @@ class UnitCurrency {
     required this.symbol,
     required this.code,
     required this.kind,
-    this.decimalPlaces = 3,
+    this.decimalPlaces = 2,
     this.isDeleted = false,
   });
 
@@ -59,6 +66,26 @@ class UnitCurrency {
     double val = double.tryParse(input.replaceAll(',', '.')) ?? 0.0;
     return (val * pow(10, decimalPlaces)).round();
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'symbol': symbol,
+        'code': code,
+        'kind': kind.index,
+        'decimalPlaces': decimalPlaces,
+        'isDeleted': isDeleted,
+      };
+
+  factory UnitCurrency.fromJson(Map<String, dynamic> json) => UnitCurrency(
+        id: json['id'] ?? UuidUtil.generate(),
+        name: json['name'] ?? '',
+        symbol: json['symbol'] ?? '',
+        code: json['code'] ?? '',
+        kind: UnitKind.values[json['kind'] ?? 0],
+        decimalPlaces: json['decimalPlaces'] ?? 2,
+        isDeleted: json['isDeleted'] ?? false,
+      );
 }
 
 class AccountParty {
@@ -79,6 +106,26 @@ class AccountParty {
     this.address = '',
     this.isDeleted = false,
   });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'phone': phone,
+        'type': type.index,
+        'category': category,
+        'address': address,
+        'isDeleted': isDeleted,
+      };
+
+  factory AccountParty.fromJson(Map<String, dynamic> json) => AccountParty(
+        id: json['id'] ?? UuidUtil.generate(),
+        name: json['name'] ?? '',
+        phone: json['phone'] ?? '',
+        type: PartyType.values[json['type'] ?? 0],
+        category: json['category'] ?? 'عام',
+        address: json['address'] ?? '',
+        isDeleted: json['isDeleted'] ?? false,
+      );
 }
 
 class LedgerEntry {
@@ -103,6 +150,30 @@ class LedgerEntry {
     this.note = '',
     this.isDeleted = false,
   });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'compositeGroupId': compositeGroupId,
+        'partyId': partyId,
+        'unitId': unitId,
+        'rawAmount': rawAmount,
+        'type': type.index,
+        'date': date.toIso8601String(),
+        'note': note,
+        'isDeleted': isDeleted,
+      };
+
+  factory LedgerEntry.fromJson(Map<String, dynamic> json) => LedgerEntry(
+        id: json['id'] ?? UuidUtil.generate(),
+        compositeGroupId: json['compositeGroupId'],
+        partyId: json['partyId'] ?? '',
+        unitId: json['unitId'] ?? '',
+        rawAmount: json['rawAmount'] ?? 0,
+        type: TransactionType.values[json['type'] ?? 0],
+        date: DateTime.tryParse(json['date'] ?? '') ?? DateTime.now(),
+        note: json['note'] ?? '',
+        isDeleted: json['isDeleted'] ?? false,
+      );
 }
 
 class PdfColumnConfig {
