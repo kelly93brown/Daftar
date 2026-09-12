@@ -1,8 +1,6 @@
 name: daftar
-description: A new Flutter project.
-
+description: تطبيق إدارة الحسابات والديون لحرفيي الصاغة والمجوهرات
 publish_to: 'none'
-
 version: 1.0.0+1
 
 environment:
@@ -11,7 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.2
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
 
 dev_dependencies:
   flutter_test:
