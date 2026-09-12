@@ -72,10 +72,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSectionHeader('الأمان والخصوصية'),
             _buildCard([
               _buildTile(Icons.lock_outline, 'كلمة المرور', () => _showPasswordSecuritySheet(context, state)),
+              _buildTile(Icons.privacy_tip_outlined, 'سياسة الخصوصية', () => _showPrivacyPolicySheet(context)),
             ]),
             const SizedBox(height: 30),
-          ],
-        ),
+
+// ثم أضف الدالة في آخر الملف قبل دالة _showBottomModal:
+
+  void _showPrivacyPolicySheet(BuildContext context) {
+    _showBottomModal(
+      context,
+      title: 'سياسة الخصوصية',
+      child: const Text(
+        'جميع بياناتك (العمليات، الحسابات، الأرصدة) يتم تخزينها محلياً ومشفّرة على جهازك ولا تتم مشاركتها مع أي طرف ثالث إطلاقاً.\n\nيلتزم تطبيق دفتر بالحفاظ على السرية والخصوصية التامة لحساباتك المالية.',
+        style: TextStyle(height: 1.6, fontSize: 14),
       ),
     );
   }
