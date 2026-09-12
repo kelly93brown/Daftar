@@ -50,8 +50,8 @@ class AppState extends ChangeNotifier {
     final goldUnitId = UuidUtil.generate();
     final dzdCurrencyId = UuidUtil.generate();
 
+    // الذهب: رقمين بعد الفاصلة (2)، الدينار: بدون فواصل (0)
     units = [
-      // تم تغيير الذهب إلى رقمين بعد الفاصلة، والدينار إلى 0
       UnitCurrency(id: goldUnitId, name: 'ذهب', symbol: 'g', code: 'XAU', kind: UnitKind.weight, decimalPlaces: 2),
       UnitCurrency(id: dzdCurrencyId, name: 'دينار', symbol: 'DA', code: 'DZD', kind: UnitKind.currency, decimalPlaces: 0),
     ];
@@ -67,8 +67,8 @@ class AppState extends ChangeNotifier {
     ];
 
     entries = [
-      LedgerEntry(id: UuidUtil.generate(), partyId: p1, unitId: goldUnitId, rawAmount: 59000, type: TransactionType.take, date: DateTime.now(), note: 'خاتم'),
-      LedgerEntry(id: UuidUtil.generate(), partyId: p1, unitId: dzdCurrencyId, rawAmount: 400000, type: TransactionType.pay, date: DateTime.now(), note: 'dzd'),
+      LedgerEntry(id: UuidUtil.generate(), partyId: p1, unitId: goldUnitId, rawAmount: 5900, type: TransactionType.take, date: DateTime.now(), note: 'خاتم'),
+      LedgerEntry(id: UuidUtil.generate(), partyId: p1, unitId: dzdCurrencyId, rawAmount: 4000, type: TransactionType.pay, date: DateTime.now(), note: 'dzd'),
     ];
 
     pdfColumns = [
