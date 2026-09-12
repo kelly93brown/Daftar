@@ -75,16 +75,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildTile(Icons.privacy_tip_outlined, 'سياسة الخصوصية', () => _showPrivacyPolicySheet(context)),
             ]),
             const SizedBox(height: 30),
-
-// ثم أضف الدالة في آخر الملف قبل دالة _showBottomModal:
-
-  void _showPrivacyPolicySheet(BuildContext context) {
-    _showBottomModal(
-      context,
-      title: 'سياسة الخصوصية',
-      child: const Text(
-        'جميع بياناتك (العمليات، الحسابات، الأرصدة) يتم تخزينها محلياً ومشفّرة على جهازك ولا تتم مشاركتها مع أي طرف ثالث إطلاقاً.\n\nيلتزم تطبيق دفتر بالحفاظ على السرية والخصوصية التامة لحساباتك المالية.',
-        style: TextStyle(height: 1.6, fontSize: 14),
+          ],
+        ),
       ),
     );
   }
@@ -256,6 +248,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _showPrivacyPolicySheet(BuildContext context) {
+    _showBottomModal(
+      context,
+      title: 'سياسة الخصوصية',
+      child: const Text(
+        'جميع بياناتك (العمليات، الحسابات، الأرصدة) يتم تخزينها محلياً ومشفّرة على جهازك ولا تتم مشاركتها مع أي طرف ثالث إطلاقاً.\n\nيلتزم تطبيق دفتر بالحفاظ على السرية والخصوصية التامة لحساباتك المالية.',
+        style: TextStyle(height: 1.6, fontSize: 14),
+      ),
+    );
+  }
+
   void _showNotificationsSheet(BuildContext context) {
     _showBottomModal(context, title: 'الإشعارات', child: const Text('الإشعارات مفعلة للتنبيهات وعمليات النسخ الاحتياطي.'));
   }
@@ -310,17 +313,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 16),
               child,
               const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D4E42), padding: const EdgeInsets.symmetric(vertical: 14)),
-                  onPressed: () {
-                    if (onSave != null) onSave();
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text('حفظ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              if (onSave != null)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D4E42), padding: const EdgeInsets.symmetric(vertical: 14)),
+                    onPressed: () {
+                      onSave();
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('حفظ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
