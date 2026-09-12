@@ -1,0 +1,55 @@
+STREAMING_CHUNK:تسمية عملية سير العمل (Workflow)
+​name: Flutter Build APK
+​STREAMING_CHUNK:تحديد متى يتم تشغيل هذا العمل
+​on:
+​هذا العمل سيعمل تلقائياً عند أي عملية "Push" إلى الفروع المحددة
+​push:
+branches: [ "main", "master" ]
+​وأيضاً عند إنشاء "Pull Request" نحو هذه الفروع
+​pull_request:
+branches: [ "main", "master" ]
+​يتيح لك تشغيل هذه العملية يدوياً من واجهة GitHub
+​workflow_dispatch:
+​STREAMING_CHUNK:تعريف المهام (Jobs) التي سيتم تنفيذها
+​jobs:
+build:
+# STREAMING_CHUNK:تحديد نظام التشغيل الذي سيتم تنفيذ البناء عليه (أحدث نسخة من أوبونتو)
+runs-on: ubuntu-latest
+​# STREAMING_CHUNK:الخطوات التفصيلية للمهمة
+steps:
+# STREAMING_CHUNK:1. استنساخ المستودع للحصول على الشيفرة المصدرية للتطبيق
+- name: Checkout Repository
+uses: actions/checkout@v4
+​# STREAMING_CHUNK:2. إعداد بيئة Java، وهي ضرورية لعملية بناء تطبيقات الأندرويد
+- name: Set up Java
+uses: actions/setup-java@v3
+with:
+distribution: 'zulu' # استخدام توزيعة Zulu من Java
+java-version: '17'    # إصدار Java المناسب لبناء Flutter الحالي
+​# STREAMING_CHUNK:3. تثبيت بيئة Flutter وأدواتها
+- name: Set up Flutter
+# نستخدم action جاهز من مجتمع Flutter لتسهيل عملية التثبيت
+uses: subosito/flutter-action@v2
+with:
+# تحديد قناة Flutter (يمكن أن تكون stable أو beta أو master)
+channel: 'stable'
+# ملاحظة: يمكنك تحديد إصدار معين من Flutter بإضافة flutter-version: '3.19.x'
+​# STREAMING_CHUNK:4. جلب حزم الاعتماديات (Dependencies) المحددة في ملف pubspec.yaml
+- name: Install Dependencies
+run: flutter pub get
+​# STREAMING_CHUNK:5. تشغيل اختبارات الوحدة (Unit tests) - اختياري ولكن مستحسن
+# إذا لم يكن لديك اختبارات أو أردت تخطي هذه الخطوة، يمكنك حذفها
+- name: Run Tests
+run: flutter test
+​# STREAMING_CHUNK:6. بناء ملف الـ APK النهائي
+# الأمر --release يضمن أن يتم بناء التطبيق بنسخته النهائية المُحسنة للأداء
+- name: Build APK
+run: flutter build apk --release
+​# STREAMING_CHUNK:7. رفع ملف الـ APK كـ "Artifact" ليتسنى للمستخدم تنزيله من واجهة GitHub
+- name: Upload APK Artifact
+uses: actions/upload-artifact@v4
+with:
+# اسم الملف الذي سيظهر في واجهة GitHub
+name: flutter-apk
+# مسار ملف الـ APK الذي تم بناؤه في الخطوة السابقة
+path: build/app/outputs/flutter-apk/app-release.apk
