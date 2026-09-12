@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../services/app_state.dart';
 import '../screens/add_account_screen.dart';
@@ -6,6 +7,90 @@ import '../screens/settings_screen.dart';
 class AppSideDrawer extends StatelessWidget {
   final AppState state;
   const AppSideDrawer({super.key, required this.state});
+
+  void _showBackupDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('حفظ نسخة احتياطية'),
+          content: const Text('سيتم تصدير ملف النسخة الاحتياطية وحفظه في:\nDownloads/Daftar/'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D4E42)),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final path = await state.exportBackup();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('تم حفظ النسخة بنجاح في:\n$path')),
+                );
+              },
+              child: const Text('حفظ الآن', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRestoreDialog(BuildContext context) async {
+    final folder = await state.getBackupFolder();
+    List<FileSystemEntity> files = [];
+    if (folder.existsSync()) {
+      files = folder.listSync().where((f) => f.path.endsWith('.json')).toList();
+    }
+    
+    // إذا لم تكن متوفرة في مجلد Daftar نبحث في مجلد Downloads الرئيسي
+    if (files.isEmpty && Platform.isAndroid) {
+      final downloadDir = Directory('/storage/emulated/0/Download');
+      if (downloadDir.existsSync()) {
+        files = downloadDir.listSync().where((f) => f.path.endsWith('.json')).toList();
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('استرجاع نسخة احتياطية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D4E42))),
+              const SizedBox(height: 8),
+              Text(
+                files.isEmpty ? 'لم يتم العثور على ملفات نسخة احتياطية في مجلد Downloads/Daftar' : 'اختر ملف النسخة الاحتياطية للاسترجاع:',
+                style: const TextStyle(fontSize: 13, color: Colors.black54),
+              ),
+              const SizedBox(height: 12),
+              if (files.isNotEmpty)
+                ...files.map((file) {
+                  final name = file.path.split('/').last;
+                  return ListTile(
+                    leading: const Icon(Icons.history, color: Color(0xFF0D4E42)),
+                    title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      final success = await state.restoreFromFile(File(file.path));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(success ? 'تم استرجاع البيانات بنجاح!' : 'فشل في استرجاع النسخة')),
+                      );
+                    },
+                  );
+                }),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   void _showSnack(BuildContext context, String msg) {
     Navigator.pop(context);
@@ -68,8 +153,14 @@ class AppSideDrawer extends StatelessWidget {
             const Divider(),
 
             _sectionTitle('إدارة البيانات'),
-            _drawerTile(Icons.cloud_upload_outlined, 'حفظ نسخة احتياطية', () => _showSnack(context, 'تم حفظ النسخة الاحتياطية محلياً بنجاح')),
-            _drawerTile(Icons.history, 'استرجاع نسخة احتياطية', () => _showSnack(context, 'يرجى اختيار ملف النسخة الاحتياطية (.db)')),
+            _drawerTile(Icons.cloud_upload_outlined, 'حفظ نسخة احتياطية', () {
+              Navigator.pop(context);
+              _showBackupDialog(context);
+            }),
+            _drawerTile(Icons.history, 'استرجاع نسخة احتياطية', () {
+              Navigator.pop(context);
+              _showRestoreDialog(context);
+            }),
             _drawerTile(Icons.add_to_drive, 'جوجل درايف', () => _showSnack(context, 'جاري الربط مع Google Drive...')),
             const Divider(),
 
