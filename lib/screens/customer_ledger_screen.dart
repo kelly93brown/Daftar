@@ -264,7 +264,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
       dynamicAmountTitle = 'المبلغ';
     }
 
-    // دعم إغلاق التحديد المتعدد بزر الرجوع الخاص بالهاتف
     return PopScope(
       canPop: !_isSearching && !_isSelectionMode,
       onPopInvokedWithResult: (didPop, result) {
@@ -377,14 +376,14 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                     ),
 
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                     color: primaryTeal,
                     child: Row(
                       children: [
-                        const Expanded(flex: 2, child: Text('الرصيد', textAlign: TextAlign.right, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
-                        const SizedBox(width: 16),
+                        const Expanded(flex: 3, child: Text('الرصيد', textAlign: TextAlign.right, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
+                        const SizedBox(width: 8),
                         const Expanded(flex: 2, child: Text('التفاصيل', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
-                        Expanded(flex: 2, child: Text(dynamicAmountTitle, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
+                        Expanded(flex: 3, child: Text(dynamicAmountTitle, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
                         Expanded(
                           flex: 2,
                           child: InkWell(
@@ -445,12 +444,12 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                                     });
                                   },
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                                     child: Row(
                                       children: [
-                                        // الرصيد: أصبح أسود وبدون ألوان، مع التنسيق LTR الصحيح
+                                        // الرصيد
                                         Expanded(
-                                          flex: 2,
+                                          flex: 3,
                                           child: Directionality(
                                             textDirection: TextDirection.ltr,
                                             child: Text(
@@ -462,12 +461,14 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                                             ),
                                           ),
                                         ),
+                                        // السهم التوضيحي الذي يعادل الفراغ
                                         Icon(isTake ? Icons.arrow_drop_down : Icons.arrow_drop_up, color: isTake ? state.debitColor : state.creditColor, size: 20),
+                                        // التفاصيل
                                         Expanded(flex: 2, child: Text(entry.note.isNotEmpty ? entry.note : '-', textAlign: TextAlign.center, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis)),
                                         
-                                        // المبلغ / الوزن باتجاه LTR للوحدة
+                                        // المبلغ / الوزن
                                         Expanded(
-                                          flex: 2,
+                                          flex: 3,
                                           child: Directionality(
                                             textDirection: TextDirection.ltr,
                                             child: Text(
@@ -478,6 +479,7 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                                           ),
                                         ),
                                         
+                                        // التاريخ
                                         Expanded(
                                           flex: 2,
                                           child: Text(
@@ -651,7 +653,6 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
     );
   }
 
-  // ===================== نافذة التعديل المطابقة تماماً للصورة 37 =====================
   void _openEditTransactionSheet(BuildContext context, AppState state, LedgerEntry entry, UnitCurrency initialUnit) {
     String selectedUnitId = entry.unitId;
     final amountCtrl = TextEditingController(text: initialUnit.formatValue(entry.rawAmount).replaceAll(' ', ''));
