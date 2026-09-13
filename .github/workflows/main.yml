@@ -25,18 +25,43 @@ jobs:
         run: flutter create --platforms=android .
 
       - name: Configure Android Permissions and Desugaring
+        shell: python
         run: |
-          # 1. إضافة صلاحيات التخزين والإشعارات
-          sed -i 's/<application/<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"\/>\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"\/>\n    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" \/>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"\/>\n    <application/g' android/app/src/main/AndroidManifest.xml
+          import os
+
+          # 1. إضافة الصلاحيات في AndroidManifest.xml
+          manifest_path = "android/app/src/main/AndroidManifest.xml"
+          with open(manifest_path, "r", encoding="utf-8") as f:
+              manifest = f.read()
           
-          # 2. تفعيل Desugaring في إعدادات الترجمة
-          sed -i 's/compileOptions {/compileOptions {\n        coreLibraryDesugaringEnabled true/g' android/app/build.gradle
+          perms = """<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+          <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+          <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+          <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+          <application"""
           
-          # 3. إضافة مكتبة Desugaring إلى التبعيات
-          echo "" >> android/app/build.gradle
-          echo "dependencies {" >> android/app/build.gradle
-          echo "    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'" >> android/app/build.gradle
-          echo "}" >> android/app/build.gradle
+          manifest = manifest.replace("<application", perms)
+          with open(manifest_path, "w", encoding="utf-8") as f:
+              f.write(manifest)
+
+          # 2. تفعيل Desugaring في ملفات Gradle الحديثة والقديمة
+          kts_path = "android/app/build.gradle.kts"
+          gradle_path = "android/app/build.gradle"
+          
+          if os.path.exists(kts_path):
+              with open(kts_path, "r", encoding="utf-8") as f:
+                  build = f.read()
+              build = build.replace("compileOptions {", "compileOptions {\n        isCoreLibraryDesugaringEnabled = true")
+              build += '\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")\n}\n'
+              with open(kts_path, "w", encoding="utf-8") as f:
+                  f.write(build)
+          elif os.path.exists(gradle_path):
+              with open(gradle_path, "r", encoding="utf-8") as f:
+                  build = f.read()
+              build = build.replace("compileOptions {", "compileOptions {\n        coreLibraryDesugaringEnabled true")
+              build += "\ndependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'\n}\n"
+              with open(gradle_path, "w", encoding="utf-8") as f:
+                  f.write(build)
 
       - name: Install Dependencies
         run: flutter pub get
