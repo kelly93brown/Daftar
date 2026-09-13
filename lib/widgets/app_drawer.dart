@@ -1,13 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/app_state.dart';
 import '../services/notification_service.dart';
 import '../screens/add_account_screen.dart';
 import '../screens/settings_screen.dart';
 
 void showTopNotification(BuildContext context, {required String title, required String message, IconData icon = Icons.check_circle}) {
-  HapticFeedback.heavyImpact(); // اهتزاز عند ظهور الإشعار الداخلي
+  HapticFeedback.heavyImpact(); 
   final overlay = Overlay.of(context);
   late OverlayEntry entry;
   entry = OverlayEntry(
@@ -62,9 +63,9 @@ class AppSideDrawer extends StatelessWidget {
   final AppState state;
   const AppSideDrawer({super.key, required this.state});
 
-  void _showBackupDialog(BuildContext context) {
+  void _showBackupDialog(BuildContext parentContext) {
     showDialog(
-      context: context,
+      context: parentContext,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
@@ -79,10 +80,9 @@ class AppSideDrawer extends StatelessWidget {
                 final path = await state.exportBackup();
                 final fileName = path.split('/').last;
                 
-                // إشعار داخلي
-                showTopNotification(context, title: 'تم حفظ نسخة احتياطية', message: 'تم حفظ الملف بنجاح: $fileName', icon: Icons.cloud_done);
+                showTopNotification(parentContext, title: 'تم حفظ نسخة احتياطية', message: 'تم حفظ الملف بنجاح: $fileName', icon: Icons.cloud_done);
                 
-                // إشعار النظام المرفق بصوت واهتزاز
+                await Permission.notification.request();
                 NotificationService.showNotification(title: "نجاح النسخ الاحتياطي", body: "تم حفظ النسخة بنجاح في مجلد Downloads/Daftar");
               },
               child: const Text('حفظ الآن', style: TextStyle(color: Colors.white)),
@@ -136,7 +136,6 @@ class AppSideDrawer extends StatelessWidget {
                         child: ListTile(
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           leading: const Icon(Icons.insert_drive_file_outlined, color: Color(0xFF0D4E42)),
-                          // إصلاح اتجاه النص ليظهر بشكل سليم
                           title: Directionality(
                             textDirection: TextDirection.ltr,
                             child: Align(
@@ -158,8 +157,9 @@ class AppSideDrawer extends StatelessWidget {
                                   Navigator.pop(ctx);
                                   final success = await state.restoreFromFile(File(file.path));
                                   if (success) {
-                                    showTopNotification(context, title: 'تم استعادة النسخة الاحتياطية', message: 'تم تحديث جميع بيانات التطبيق بنجاح.', icon: Icons.restore_page);
-                                    NotificationService.showNotification(title: "نجاح الاستعادة", body: "تم استعادة بيانات النسخة الاحتياطية بسلام.");
+                                    showTopNotification(context, title: 'تم استعادة النسخة الاحتياطية', message: 'تم استعادة بيانات النسخة الاحتياطية بنجاح.', icon: Icons.restore_page);
+                                    await Permission.notification.request();
+                                    NotificationService.showNotification(title: "نجاح الاستعادة", body: "تم استعادة بيانات النسخة الاحتياطية بنجاح.");
                                   }
                                 },
                                 child: const Text('استعادة', style: TextStyle(color: Colors.white, fontSize: 12)),
