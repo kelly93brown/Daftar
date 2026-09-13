@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
 
@@ -29,15 +30,16 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
   late String _primaryUnitId;
   String? _secondaryUnitId;
   bool _isComposite = false;
+  String? _imagePath;
 
   final TextEditingController _primaryAmountCtrl = TextEditingController();
   final TextEditingController _secondaryAmountCtrl = TextEditingController();
   final TextEditingController _noteCtrl = TextEditingController();
+  final FocusNode _amountFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    // اختيار آخر شخص تم التعامل معه تلقائياً
     if (widget.preselectedPartyId != null) {
       _selectedPartyId = widget.preselectedPartyId;
     } else if (widget.state.entries.isNotEmpty) {
@@ -53,6 +55,11 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
     if (widget.state.units.length > 1) {
       _secondaryUnitId = widget.state.units[1].id;
     }
+
+    // فتح الكيبورد تلقائياً
+    Future.delayed(const Duration(milliseconds: 200), () {
+      _amountFocusNode.requestFocus();
+    });
   }
 
   @override
@@ -60,6 +67,7 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
     _primaryAmountCtrl.dispose();
     _secondaryAmountCtrl.dispose();
     _noteCtrl.dispose();
+    _amountFocusNode.dispose();
     super.dispose();
   }
 
@@ -82,38 +90,34 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
     );
   }
 
-  // حل مشكلة القائمة المنسدلة للوحدة بالصورة 1
-  void _openUnitPicker(bool isPrimary) {
-    FocusScope.of(context).unfocus(); // إغلاق الكيبورد فوراً لمنع اهتزاز النافذة
-    showModalBottomSheet(
+  Future<void> _pickImage(ImageSource source) async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: source, imageQuality: 70);
+    if (image != null) {
+      setState(() => _imagePath = image.path);
+    }
+  }
+
+  void _showImageSourceDialog() {
+    showDialog(
       context: context,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-          child: Column(
+        child: AlertDialog(
+          title: const Text('إرفاق صورة'),
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('اختر الوحدة أو العملة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0D4E42))),
-              const SizedBox(height: 10),
-              ...widget.state.units.where((u) => !u.isDeleted).map((u) {
-                return ListTile(
-                  title: Text(u.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  trailing: Text(u.symbol, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-                  onTap: () {
-                    setState(() {
-                      if (isPrimary) {
-                        _primaryUnitId = u.id;
-                      } else {
-                        _secondaryUnitId = u.id;
-                      }
-                    });
-                    Navigator.pop(ctx);
-                  },
-                );
-              }),
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Color(0xFF0D4E42)),
+                title: const Text('الكاميرا'),
+                onTap: () { Navigator.pop(ctx); _pickImage(ImageSource.camera); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Color(0xFF0D4E42)),
+                title: const Text('المعرض'),
+                onTap: () { Navigator.pop(ctx); _pickImage(ImageSource.gallery); },
+              ),
             ],
           ),
         ),
@@ -178,22 +182,11 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
     final primaryUnit = state.units.firstWhere((u) => u.id == _primaryUnitId);
     final secUnit = _secondaryUnitId != null ? state.units.firstWhere((u) => u.id == _secondaryUnitId) : null;
     final isPrimaryWeight = primaryUnit.kind == UnitKind.weight;
-    final currentParty = state.parties.firstWhere(
-      (p) => p.id == _selectedPartyId,
-      orElse: () => AccountParty(id: '', name: 'اختر الحساب'),
-    );
+    final currentParty = state.parties.firstWhere((p) => p.id == _selectedPartyId, orElse: () => AccountParty(id: '', name: 'اختر الحساب'));
 
     return Container(
-      padding: EdgeInsets.only(
-        top: 12,
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      padding: EdgeInsets.only(top: 12, left: 20, right: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -216,13 +209,7 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
                         children: [
                           const Icon(Icons.person, color: Color(0xFF0D4E42), size: 20),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              currentParty.name,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                          Expanded(child: Text(currentParty.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis)),
                           const Icon(Icons.arrow_drop_down, color: Colors.grey),
                         ],
                       ),
@@ -234,12 +221,7 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
                   flex: 1,
                   child: InkWell(
                     onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _selectedDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                      );
+                      final picked = await showDatePicker(context: context, initialDate: _selectedDate, firstDate: DateTime(2020), lastDate: DateTime(2030));
                       if (picked != null) setState(() => _selectedDate = picked);
                     },
                     child: Container(
@@ -249,10 +231,7 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
                         children: [
                           const Icon(Icons.calendar_today, size: 16, color: Color(0xFF0D4E42)),
                           const SizedBox(height: 4),
-                          Text(
-                            "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}",
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
+                          Text("${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -268,10 +247,10 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
                   flex: 2,
                   child: TextField(
                     controller: _primaryAmountCtrl,
+                    focusNode: _amountFocusNode,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
-                      labelText: isPrimaryWeight ? 'الوزن (${primaryUnit.symbol})' : 'المبلغ (${primaryUnit.symbol})',
-                      hintText: isPrimaryWeight ? '12.45' : '50000',
+                      labelText: isPrimaryWeight ? 'الوزن' : 'المبلغ',
                       filled: true,
                       fillColor: const Color(0xFFF6F8F8),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -281,17 +260,18 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
                 const SizedBox(width: 8),
                 Expanded(
                   flex: 1,
-                  child: InkWell(
-                    onTap: () => _openUnitPicker(true),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-                      decoration: BoxDecoration(color: const Color(0xFFF6F8F8), borderRadius: BorderRadius.circular(12)),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Icon(Icons.arrow_drop_down, color: Colors.grey),
-                          Text(primaryUnit.symbol, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        ],
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(color: const Color(0xFFF6F8F8), borderRadius: BorderRadius.circular(12)),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: _primaryUnitId,
+                        icon: const Icon(Icons.arrow_drop_down, color: Colors.grey), // السهم سيظهر على اليسار تلقائياً في RTL
+                        items: state.units.where((u) => !u.isDeleted).map((u) {
+                          return DropdownMenuItem(value: u.id, child: Text(u.symbol, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)));
+                        }).toList(),
+                        onChanged: (val) { if (val != null) setState(() => _primaryUnitId = val); },
                       ),
                     ),
                   ),
@@ -303,10 +283,7 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 icon: Icon(_isComposite ? Icons.close : Icons.add_circle_outline, size: 18),
-                label: Text(
-                  _isComposite ? 'إلغاء المعاملة المركبة' : '+ إضافة وحدة أخرى',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
+                label: Text(_isComposite ? 'إلغاء المعاملة المركبة' : '+ إضافة وحدة أخرى', style: const TextStyle(fontWeight: FontWeight.bold)),
                 onPressed: () => setState(() => _isComposite = !_isComposite),
               ),
             ),
@@ -319,28 +296,24 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
                     child: TextField(
                       controller: _secondaryAmountCtrl,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        labelText: 'المبلغ / الوزن الإضافي',
-                        filled: true,
-                        fillColor: const Color(0xFFFFF9E6),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      ),
+                      decoration: InputDecoration(labelText: 'المبلغ / الوزن الإضافي', filled: true, fillColor: const Color(0xFFFFF9E6), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     flex: 1,
-                    child: InkWell(
-                      onTap: () => _openUnitPicker(false),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-                        decoration: BoxDecoration(color: const Color(0xFFFFF9E6), borderRadius: BorderRadius.circular(12)),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Icon(Icons.arrow_drop_down, color: Colors.grey),
-                            Text(secUnit.symbol, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(color: const Color(0xFFFFF9E6), borderRadius: BorderRadius.circular(12)),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: _secondaryUnitId,
+                          icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                          items: state.units.where((u) => !u.isDeleted).map((u) {
+                            return DropdownMenuItem(value: u.id, child: Text(u.symbol, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)));
+                          }).toList(),
+                          onChanged: (val) { if (val != null) setState(() => _secondaryUnitId = val); },
                         ),
                       ),
                     ),
@@ -350,14 +323,33 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
               const SizedBox(height: 10),
             ],
 
-            TextField(
-              controller: _noteCtrl,
-              decoration: InputDecoration(
-                hintText: 'التفاصيل أو البيان',
-                filled: true,
-                fillColor: const Color(0xFFF6F8F8),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _noteCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'التفاصيل أو البيان',
+                      filled: true,
+                      fillColor: const Color(0xFFF6F8F8),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: _showImageSourceDialog,
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: _imagePath != null ? Colors.green.shade100 : const Color(0xFFF6F8F8),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _imagePath != null ? Colors.green : Colors.transparent),
+                    ),
+                    child: Icon(Icons.camera_alt_outlined, color: _imagePath != null ? Colors.green : const Color(0xFF0D4E42), size: 24),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 18),
 
@@ -365,11 +357,7 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: state.debitColor,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: state.debitColor, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                     onPressed: () => _submit(TransactionType.take),
                     child: const Text('أخذ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
@@ -377,11 +365,7 @@ class _QuickAddModalContentState extends State<QuickAddModalContent> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: state.creditColor,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: state.creditColor, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                     onPressed: () => _submit(TransactionType.pay),
                     child: const Text('دفع', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
@@ -427,26 +411,14 @@ class _PartySearchSheetState extends State<_PartySearchSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-              Row(
-                children: const [
-                  Text('اسم الحساب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  SizedBox(width: 6),
-                  Icon(Icons.account_balance_wallet_outlined, color: primaryTeal),
-                ],
-              ),
+              Row(children: const [Text('اسم الحساب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), SizedBox(width: 6), Icon(Icons.account_balance_wallet_outlined, color: primaryTeal)]),
             ],
           ),
           const SizedBox(height: 10),
           TextField(
             autofocus: false,
             onChanged: (v) => setState(() => _query = v),
-            decoration: InputDecoration(
-              hintText: 'بحث',
-              prefixIcon: const Icon(Icons.search),
-              filled: true,
-              fillColor: const Color(0xFFF6F8F8),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            ),
+            decoration: InputDecoration(hintText: 'بحث', prefixIcon: const Icon(Icons.search), filled: true, fillColor: const Color(0xFFF6F8F8), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
           ),
           const SizedBox(height: 12),
           Expanded(
@@ -459,10 +431,7 @@ class _PartySearchSheetState extends State<_PartySearchSheet> {
 
                 return ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  leading: CircleAvatar(
-                    backgroundColor: const Color(0xFFE2EFEA),
-                    child: Text(p.name.isNotEmpty ? p.name[0] : '?', style: const TextStyle(color: primaryTeal, fontWeight: FontWeight.bold)),
-                  ),
+                  leading: CircleAvatar(backgroundColor: const Color(0xFFE2EFEA), child: Text(p.name.isNotEmpty ? p.name[0] : '?', style: const TextStyle(color: primaryTeal, fontWeight: FontWeight.bold))),
                   title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text(p.phone, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                   trailing: isSelected ? const Icon(Icons.check_circle, color: primaryTeal) : null,
