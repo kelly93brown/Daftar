@@ -24,9 +24,19 @@ jobs:
       - name: Generate Android Platform Files
         run: flutter create --platforms=android .
 
-      - name: Inject Android Permissions
+      - name: Configure Android Permissions and Desugaring
         run: |
+          # 1. إضافة صلاحيات التخزين والإشعارات
           sed -i 's/<application/<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"\/>\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"\/>\n    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" \/>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"\/>\n    <application/g' android/app/src/main/AndroidManifest.xml
+          
+          # 2. تفعيل Desugaring في إعدادات الترجمة
+          sed -i 's/compileOptions {/compileOptions {\n        coreLibraryDesugaringEnabled true/g' android/app/build.gradle
+          
+          # 3. إضافة مكتبة Desugaring إلى التبعيات
+          echo "" >> android/app/build.gradle
+          echo "dependencies {" >> android/app/build.gradle
+          echo "    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'" >> android/app/build.gradle
+          echo "}" >> android/app/build.gradle
 
       - name: Install Dependencies
         run: flutter pub get
